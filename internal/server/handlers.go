@@ -8,22 +8,14 @@ import (
 )
 
 const (
-	contentType = "Content-Type"
-	textPlain   = "text/plain"
-
-	postMethodError  = "use POST for saving metrics"
-	contentTypeError = "invalid content-type header value"
-	metricPathError  = "invalid metric path"
+	postMethodError = "use POST for saving metrics"
+	metricPathError = "invalid metric path"
 )
 
 // updateHandler handles requests for adding metrics
 func (s *server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, postMethodError, http.StatusMethodNotAllowed)
-		return
-	}
-	if r.Header.Get(contentType) != textPlain {
-		http.Error(w, contentTypeError, http.StatusBadRequest)
 		return
 	}
 
