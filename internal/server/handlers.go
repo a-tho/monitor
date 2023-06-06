@@ -1,21 +1,21 @@
 package server
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 )
 
 const (
-	postMethodError = "use POST for saving metrics"
-	metricPathError = "invalid metric path"
+	errPostMethod = "use POST for saving metrics"
+	errMetricPath = "invalid metric path"
 )
 
 // updateHandler handles requests for adding metrics
 func (s *server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, postMethodError, http.StatusMethodNotAllowed)
+		http.Error(w, errPostMethod, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -45,14 +45,14 @@ func (s *server) updateHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		s.counter.Add(name, v)
 	default:
-		http.Error(w, metricPathError, http.StatusBadRequest)
+		http.Error(w, errMetricPath, http.StatusBadRequest)
 		return
 	}
 }
 
 func splitMetricPath(path string) (typ, name, value string, err error) {
 	if len(path) == 0 {
-		err = fmt.Errorf(metricPathError)
+		err = errors.New(errMetricPath)
 		return
 	}
 	ss := strings.Split(path, "/")
@@ -64,7 +64,7 @@ func splitMetricPath(path string) (typ, name, value string, err error) {
 	case 1:
 		typ = ss[0]
 	default:
-		err = fmt.Errorf(metricPathError)
+		err = errors.New(errMetricPath)
 	}
 	return
 }
