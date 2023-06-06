@@ -64,10 +64,10 @@ func splitMetricPath(path string) (typ, name, value string, err error) {
 		return
 	}
 	ss := strings.Split(path, "/")
-	if len(ss) != 4 {
+	if len(ss) != 3 {
 		err = fmt.Errorf(metricPathError)
 		return
 	}
-	typ, name, value = ss[1], ss[2], ss[3]
+	typ, name, value = ss[0], ss[1], ss[2]
 	return
 }
