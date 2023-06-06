@@ -56,10 +56,15 @@ func splitMetricPath(path string) (typ, name, value string, err error) {
 		return
 	}
 	ss := strings.Split(path, "/")
-	if len(ss) != 3 {
+	switch len(ss) {
+	case 3:
+		typ, name, value = ss[0], ss[1], ss[2]
+	case 2:
+		typ, name = ss[0], ss[1]
+	case 1:
+		typ = ss[0]
+	default:
 		err = fmt.Errorf(metricPathError)
-		return
 	}
-	typ, name, value = ss[0], ss[1], ss[2]
 	return
 }
