@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	gauge   monitor.Metric[float64]
-	counter monitor.Metric[int64]
+	gauge   monitor.MetricRepo[monitor.Gauge]
+	counter monitor.MetricRepo[monitor.Counter]
 )
 
 func main() {
@@ -20,8 +20,8 @@ func main() {
 }
 
 func run() error {
-	gauge = storage.New[float64]()
-	counter = storage.New[int64]()
+	gauge = storage.New[monitor.Gauge]()
+	counter = storage.New[monitor.Counter]()
 
 	mux := server.New(gauge, counter)
 	return http.ListenAndServe("localhost:8080", mux)

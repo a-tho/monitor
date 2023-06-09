@@ -1,4 +1,4 @@
-// Package server implements the multiplexer and the handlers necessary for
+// Package server implements a multiplexer and handlers necessary for
 // processing incoming requests.
 package server
 
@@ -9,23 +9,23 @@ import (
 )
 
 type server struct {
-	gauge   monitor.Metric[float64]
-	counter monitor.Metric[int64]
+	gauge   monitor.MetricRepo[monitor.Gauge]
+	counter monitor.MetricRepo[monitor.Counter]
 }
 
 // New creates a new multiplexer with configured handlers
 func New(
-	gauge monitor.Metric[float64],
-	counter monitor.Metric[int64],
+	gauge monitor.MetricRepo[monitor.Gauge],
+	counter monitor.MetricRepo[monitor.Counter],
 ) *http.ServeMux {
 	srv := server{gauge: gauge, counter: counter}
 	mux := http.NewServeMux()
-	mux.Handle(pathPrefix, http.StripPrefix(pathPrefix, http.HandlerFunc(srv.updateHandler)))
+	mux.Handle(PathPrefix, http.StripPrefix(PathPrefix, http.HandlerFunc(srv.updateHandler)))
 	return mux
 }
 
 const (
-	pathPrefix  = "/update/"
-	gaugePath   = "gauge"
-	counterPath = "counter"
+	PathPrefix  = "/update/"
+	GaugePath   = "gauge"
+	CounterPath = "counter"
 )

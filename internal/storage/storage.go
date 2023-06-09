@@ -1,16 +1,20 @@
 // Package storage implements a trivial storage.
 package storage
 
+import (
+	monitor "github.com/a-tho/monitor/internal"
+)
+
 // MemStorage represents the storage.
-type MemStorage[T float64 | int64] struct {
+type MemStorage[T monitor.Gauge | monitor.Counter] struct {
 	data map[string]T
 }
 
 // New returns an initialized storage.
-func New[T float64 | int64]() *MemStorage[T] {
-	var stor MemStorage[T]
-	stor.data = make(map[string]T)
-	return &stor
+func New[T monitor.Gauge | monitor.Counter]() *MemStorage[T] {
+	return &MemStorage[T]{
+		data: make(map[string]T),
+	}
 }
 
 // Set inserts or updates a value v for the key k.

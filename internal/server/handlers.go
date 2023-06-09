@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	monitor "github.com/a-tho/monitor/internal"
 )
 
 const (
@@ -30,20 +32,20 @@ func (s *server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch typ {
-	case gaugePath:
+	case GaugePath:
 		v, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		s.gauge.Set(name, v)
-	case counterPath:
+		s.gauge.Set(name, monitor.Gauge(v))
+	case CounterPath:
 		v, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		s.counter.Add(name, v)
+		s.counter.Add(name, monitor.Counter(v))
 	default:
 		http.Error(w, errMetricPath, http.StatusBadRequest)
 		return
