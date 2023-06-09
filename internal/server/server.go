@@ -20,7 +20,7 @@ func New(
 ) *http.ServeMux {
 	srv := server{gauge: gauge, counter: counter}
 	mux := http.NewServeMux()
-	mux.Handle(PathPrefix, http.StripPrefix(PathPrefix, http.HandlerFunc(srv.updateHandler)))
+	mux.Handle(PathPrefix, http.StripPrefix(PathPrefix, http.HandlerFunc(srv.UpdateHandler)))
 	return mux
 }
 
