@@ -2,6 +2,8 @@
 package storage
 
 import (
+	"encoding/json"
+
 	monitor "github.com/a-tho/monitor/internal"
 )
 
@@ -25,4 +27,9 @@ func (s *MemStorage[T]) Set(k string, v T) {
 // Add adds v to the value for the key k.
 func (s *MemStorage[T]) Add(k string, v T) {
 	s.data[k] += v
+}
+
+func (s *MemStorage[T]) String() string {
+	out, _ := json.Marshal(s.data)
+	return string(out)
 }

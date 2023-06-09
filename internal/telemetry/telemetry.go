@@ -37,7 +37,7 @@ func New(pollInterval time.Duration, reportStep int) *Observer {
 func (o *Observer) Observe() {
 	pollCount := 0
 	for {
-		// Poll and report metrics
+		// Poll metrics
 		var (
 			t        = pollCount % o.reportStep
 			memStats runtime.MemStats

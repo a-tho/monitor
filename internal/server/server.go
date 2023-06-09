@@ -25,7 +25,7 @@ func New(
 }
 
 const (
-	PathPrefix  = "/update/"
+	PathPrefix  = "/update"
 	GaugePath   = "gauge"
 	CounterPath = "counter"
 )

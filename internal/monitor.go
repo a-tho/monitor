@@ -9,6 +9,7 @@ type Counter int64
 type MetricRepo[T Gauge | Counter] interface {
 	Set(k string, v T)
 	Add(k string, v T)
+	String() string
 }
 
 // An Observer is used to collect and transmit metrics.

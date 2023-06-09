@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	errPostMethod = "use POST for saving metrics"
-	errMetricPath = "invalid metric path"
+	errPostMethod  = "use POST for saving metrics"
+	errMetricPath  = "invalid metric path"
+	errMetricValue = "invalid metric value"
 )
 
 // updateHandler handles requests for adding metrics
@@ -35,14 +36,14 @@ func (s *server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	case GaugePath:
 		v, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, errMetricValue, http.StatusBadRequest)
 			return
 		}
 		s.gauge.Set(name, monitor.Gauge(v))
 	case CounterPath:
 		v, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, errMetricValue, http.StatusBadRequest)
 			return
 		}
 		s.counter.Add(name, monitor.Counter(v))
@@ -59,12 +60,12 @@ func splitMetricPath(path string) (typ, name, value string, err error) {
 	}
 	ss := strings.Split(path, "/")
 	switch len(ss) {
+	case 4:
+		typ, name, value = ss[1], ss[2], ss[3]
 	case 3:
-		typ, name, value = ss[0], ss[1], ss[2]
+		typ, name = ss[1], ss[2]
 	case 2:
-		typ, name = ss[0], ss[1]
-	case 1:
-		typ = ss[0]
+		typ = ss[1]
 	default:
 		err = errors.New(errMetricPath)
 	}
