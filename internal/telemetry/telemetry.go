@@ -26,7 +26,7 @@ func New(pollInterval time.Duration, reportStep int) *Observer {
 		pollInterval:   pollInterval,
 		reportStep:     reportStep,
 		reportInterval: pollInterval * time.Duration(reportStep),
-		polled:         make([]monitor.MetricInstance, 0, reportStep),
+		polled:         make([]monitor.MetricInstance, reportStep),
 	}
 	for i := range obs.polled {
 		obs.polled[i].Gauges = make(map[string]monitor.Gauge)
@@ -79,7 +79,7 @@ func (o *Observer) Observe() {
 			// Report to the server
 			for _, instance := range o.polled {
 				for key, value := range instance.Gauges {
-					url := "http://localhost:8080" + server.PathPrefix + "/" +
+					url := "http://localhost:8080" + server.PathPrefix +
 						server.GaugePath + "/" + key + "/" + strconv.Itoa(int(value))
 					resp, err := http.Post(url, "text-plain", nil)
 					if err != nil {
