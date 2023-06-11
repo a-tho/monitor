@@ -9,7 +9,22 @@ import (
 	monitor "github.com/a-tho/monitor/internal"
 	"github.com/a-tho/monitor/internal/storage"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func testRequest(t *testing.T, srv *httptest.Server, method, path string, body io.Reader) (*http.Response, string) {
+	req, err := http.NewRequest(method, srv.URL+path, body)
+	require.NoError(t, err)
+
+	resp, err := srv.Client().Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return resp, string(respBody)
+}
 
 func TestServerUpdHandler(t *testing.T) {
 	type request struct {
@@ -36,12 +51,12 @@ func TestServerUpdHandler(t *testing.T) {
 			name: "invalid request method",
 			request: request{
 				method: http.MethodGet,
-				path:   "/" + GaugePath + "/" + "Apple" + "/" + "3",
+				path:   "/" + UpdPath + "/" + GaugePath + "/" + "Apple" + "/" + "3",
 			},
 			want: want{
 				code:        http.StatusMethodNotAllowed,
-				respBody:    errPostMethod + "\n",
-				contentType: "text/plain; charset=utf-8",
+				respBody:    "",
+				contentType: "",
 				gauge:       `{}`,
 				counter:     `{}`,
 			},
@@ -64,7 +79,7 @@ func TestServerUpdHandler(t *testing.T) {
 			name: "wrong metric type",
 			request: request{
 				method: http.MethodPost,
-				path:   "/" + "wrongtype" + "/" + "Apple" + "/" + "3",
+				path:   "/" + UpdPath + "/" + "wrongtype" + "/" + "Apple" + "/" + "3",
 			},
 			want: want{
 				code:        http.StatusBadRequest,
@@ -78,7 +93,7 @@ func TestServerUpdHandler(t *testing.T) {
 			name: "wrong metric value for counter",
 			request: request{
 				method: http.MethodPost,
-				path:   "/" + CounterPath + "/" + "Apple" + "/" + "wrongvalue",
+				path:   "/" + UpdPath + "/" + CounterPath + "/" + "Apple" + "/" + "wrongvalue",
 			},
 			want: want{
 				code:        http.StatusBadRequest,
@@ -92,7 +107,7 @@ func TestServerUpdHandler(t *testing.T) {
 			name: "valid gauge request",
 			request: request{
 				method: http.MethodPost,
-				path:   "/" + GaugePath + "/" + "Apple" + "/" + "3",
+				path:   "/" + UpdPath + "/" + GaugePath + "/" + "Apple" + "/" + "3",
 			},
 			want: want{
 				code:        http.StatusOK,
@@ -106,27 +121,22 @@ func TestServerUpdHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := server{gauge: storage.New[monitor.Gauge](), counter: storage.New[monitor.Counter]()}
+			gauge := storage.New[monitor.Gauge]()
+			counter := storage.New[monitor.Counter]()
+			srv := httptest.NewServer(New(gauge, counter))
+			defer srv.Close()
 
-			r := httptest.NewRequest(tt.request.method, tt.request.path, nil)
-			w := httptest.NewRecorder()
-
-			s.UpdHandler(w, r)
+			resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil)
 
 			// Validate response
-			res := w.Result()
-			defer assert.NoError(t, res.Body.Close())
+			assert.Equal(t, tt.want.code, resp.StatusCode)
+			assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-Type"))
 
-			assert.Equal(t, tt.want.code, res.StatusCode)
-			assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
-
-			respBody, err := io.ReadAll(res.Body)
-			assert.NoError(t, err)
 			assert.Equal(t, tt.want.respBody, string(respBody))
 
 			// Validate server storage
-			assert.JSONEq(t, tt.want.gauge, s.gauge.String())
-			assert.JSONEq(t, tt.want.counter, s.counter.String())
+			assert.JSONEq(t, tt.want.gauge, gauge.String())
+			assert.JSONEq(t, tt.want.counter, counter.String())
 		})
 	}
 }
