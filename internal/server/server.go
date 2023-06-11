@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	monitor "github.com/a-tho/monitor/internal"
+	"github.com/go-chi/chi/v5"
 )
 
 type server struct {
@@ -17,15 +18,19 @@ type server struct {
 func New(
 	gauge monitor.MetricRepo[monitor.Gauge],
 	counter monitor.MetricRepo[monitor.Counter],
-) *http.ServeMux {
+) *chi.Mux {
 	srv := server{gauge: gauge, counter: counter}
-	mux := http.NewServeMux()
-	mux.Handle(PathPrefix+"/", http.StripPrefix(PathPrefix, http.HandlerFunc(srv.UpdateHandler)))
+	mux := chi.NewRouter()
+
+	StrippedUpdHandler := http.StripPrefix(UpdPath, http.HandlerFunc(srv.UpdHandler))
+	mux.Post(UpdPath+"/", StrippedUpdHandler.ServeHTTP)
+
 	return mux
 }
 
 const (
-	PathPrefix  = "/update"
+	UpdPath = "/update"
+
 	GaugePath   = "gauge"
 	CounterPath = "counter"
 )

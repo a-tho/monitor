@@ -8,9 +8,10 @@ import (
 )
 
 func main() {
+	srvAddr := "http://localhost:8080"
 	pollInterval := 2 * time.Second
 	reportStep := 5
 
-	var obs monitor.Observer = telemetry.New(pollInterval, reportStep)
+	var obs monitor.Observer = telemetry.New(srvAddr, pollInterval, reportStep)
 	obs.Observe()
 }

@@ -3,16 +3,17 @@ package telemetry
 
 import (
 	"math/rand"
-	"net/http"
 	"runtime"
 	"strconv"
 	"time"
 
 	monitor "github.com/a-tho/monitor/internal"
 	"github.com/a-tho/monitor/internal/server"
+	"github.com/go-resty/resty/v2"
 )
 
 type Observer struct {
+	srvAddr        string
 	pollInterval   time.Duration
 	reportStep     int
 	reportInterval time.Duration
@@ -21,8 +22,9 @@ type Observer struct {
 	polled []monitor.MetricInstance
 }
 
-func New(pollInterval time.Duration, reportStep int) *Observer {
+func New(srvAddr string, pollInterval time.Duration, reportStep int) *Observer {
 	obs := Observer{
+		srvAddr:        srvAddr,
 		pollInterval:   pollInterval,
 		reportStep:     reportStep,
 		reportInterval: pollInterval * time.Duration(reportStep),
@@ -79,14 +81,15 @@ func (o *Observer) Observe() {
 			// Report to the server
 			for _, instance := range o.polled {
 				for key, value := range instance.Gauges {
-					url := "http://localhost:8080" + server.PathPrefix +
+					url := o.srvAddr + server.UpdPath +
 						server.GaugePath + "/" + key + "/" + strconv.Itoa(int(value))
-					resp, err := http.Post(url, "text-plain", nil)
+
+					client := resty.New()
+					resp, err := client.R().Post(url)
+					resp.Body()
 					if err != nil {
 						continue
 					}
-					resp.Body.Close()
-
 				}
 
 			}

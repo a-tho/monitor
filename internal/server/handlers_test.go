@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestServerUpdateHandler(t *testing.T) {
+func TestServerUpdHandler(t *testing.T) {
 	type request struct {
 		method string
 		path   string
@@ -111,7 +111,7 @@ func TestServerUpdateHandler(t *testing.T) {
 			r := httptest.NewRequest(tt.request.method, tt.request.path, nil)
 			w := httptest.NewRecorder()
 
-			s.UpdateHandler(w, r)
+			s.UpdHandler(w, r)
 
 			// Validate response
 			res := w.Result()

@@ -15,8 +15,8 @@ const (
 	errMetricValue = "invalid metric value"
 )
 
-// UpdateHandler handles requests for adding metrics
-func (s *server) UpdateHandler(w http.ResponseWriter, r *http.Request) {
+// UpdHandler handles requests for adding metrics
+func (s *server) UpdHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, errPostMethod, http.StatusMethodNotAllowed)
 		return
