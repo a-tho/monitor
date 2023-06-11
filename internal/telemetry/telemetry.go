@@ -2,9 +2,9 @@
 package telemetry
 
 import (
+	"fmt"
 	"math/rand"
 	"runtime"
-	"strconv"
 	"time"
 
 	monitor "github.com/a-tho/monitor/internal"
@@ -81,8 +81,8 @@ func (o *Observer) Observe() {
 			// Report to the server
 			for _, instance := range o.polled {
 				for key, value := range instance.Gauges {
-					url := o.srvAddr + server.UpdPath +
-						server.GaugePath + "/" + key + "/" + strconv.Itoa(int(value))
+					url := fmt.Sprintf("%s/%s/%s/%s/%d",
+						o.srvAddr, server.UpdPath, server.GaugePath, key, int(value))
 
 					client := resty.New()
 					resp, err := client.R().Post(url)

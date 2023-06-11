@@ -3,7 +3,7 @@
 package server
 
 import (
-	"net/http"
+	"fmt"
 
 	monitor "github.com/a-tho/monitor/internal"
 	"github.com/go-chi/chi/v5"
@@ -22,15 +22,19 @@ func New(
 	srv := server{gauge: gauge, counter: counter}
 	mux := chi.NewRouter()
 
-	StrippedUpdHandler := http.StripPrefix(UpdPath, http.HandlerFunc(srv.UpdHandler))
-	mux.Post(UpdPath+"/", StrippedUpdHandler.ServeHTTP)
+	path := fmt.Sprintf("/%s/{%s}/{%s}/{%s}", UpdPath, TypePath, NamePath, ValuePath)
+	mux.Post(path, srv.UpdHandler)
 
 	return mux
 }
 
 const (
-	UpdPath = "/update"
+	UpdPath = "update"
 
 	GaugePath   = "gauge"
 	CounterPath = "counter"
+
+	TypePath  = "type"
+	NamePath  = "name"
+	ValuePath = "value"
 )

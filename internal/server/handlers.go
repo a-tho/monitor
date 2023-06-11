@@ -1,12 +1,11 @@
 package server
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 
 	monitor "github.com/a-tho/monitor/internal"
+	"github.com/go-chi/chi/v5"
 )
 
 const (
@@ -17,16 +16,9 @@ const (
 
 // UpdHandler handles requests for adding metrics
 func (s *server) UpdHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, errPostMethod, http.StatusMethodNotAllowed)
-		return
-	}
-
-	typ, name, value, err := splitMetricPath(r.URL.Path)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	typ := chi.URLParam(r, TypePath)
+	name := chi.URLParam(r, NamePath)
+	value := chi.URLParam(r, ValuePath)
 	if name == "" {
 		http.NotFound(w, r)
 		return
@@ -51,23 +43,4 @@ func (s *server) UpdHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, errMetricPath, http.StatusBadRequest)
 		return
 	}
-}
-
-func splitMetricPath(path string) (typ, name, value string, err error) {
-	if len(path) == 0 {
-		err = errors.New(errMetricPath)
-		return
-	}
-	ss := strings.Split(path, "/")
-	switch len(ss) {
-	case 4:
-		typ, name, value = ss[1], ss[2], ss[3]
-	case 3:
-		typ, name = ss[1], ss[2]
-	case 2:
-		typ = ss[1]
-	default:
-		err = errors.New(errMetricPath)
-	}
-	return
 }
