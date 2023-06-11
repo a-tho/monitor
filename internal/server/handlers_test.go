@@ -18,7 +18,6 @@ func testRequest(t *testing.T, srv *httptest.Server, method, path string, body i
 
 	resp, err := srv.Client().Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
@@ -127,6 +126,7 @@ func TestServerUpdHandler(t *testing.T) {
 			defer srv.Close()
 
 			resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil)
+			defer resp.Body.Close()
 
 			// Validate response
 			assert.Equal(t, tt.want.code, resp.StatusCode)
