@@ -25,9 +25,9 @@ type Observer struct {
 func New(srvAddr string, pollInterval, reportStep int) *Observer {
 	obs := Observer{
 		srvAddr:        srvAddr,
-		pollInterval:   time.Duration(pollInterval),
+		pollInterval:   time.Duration(pollInterval) * time.Second,
 		reportStep:     reportStep,
-		reportInterval: time.Duration(pollInterval * reportStep),
+		reportInterval: time.Duration(pollInterval*reportStep) * time.Second,
 		polled:         make([]monitor.MetricInstance, reportStep),
 	}
 	for i := range obs.polled {
