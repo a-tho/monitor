@@ -76,7 +76,7 @@ func TestServerUpdHandler(t *testing.T) {
 			name: "no metric name",
 			request: request{
 				method: http.MethodPost,
-				path:   "/",
+				path:   "/" + UpdPath,
 			},
 			want: want{
 				code:        http.StatusNotFound,
