@@ -22,8 +22,13 @@ func New(
 	srv := server{gauge: gauge, counter: counter}
 	mux := chi.NewRouter()
 
+	mux.Get("/", srv.GetAllHandler)
+
 	path := fmt.Sprintf("/%s/{%s}/{%s}/{%s}", UpdPath, TypePath, NamePath, ValuePath)
 	mux.Post(path, srv.UpdHandler)
+
+	path = fmt.Sprintf("/%s/{%s}/{%s}", ValuePath, TypePath, NamePath)
+	mux.Get(path, srv.GetValHandler)
 
 	return mux
 }

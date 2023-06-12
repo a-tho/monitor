@@ -12,6 +12,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	notFoundResponse = "404 page not found\n"
+
+	textPlain = "text/plain; charset=utf-8"
+)
+
+type request struct {
+	method string
+	path   string
+}
+
+type want struct {
+	// Response-related fields
+	code        int
+	respBody    string
+	contentType string
+
+	//Storage-related fields
+	gauge   string
+	counter string
+}
+
+type state struct {
+	gauge   monitor.MetricRepo[monitor.Gauge]
+	counter monitor.MetricRepo[monitor.Counter]
+}
+
 func testRequest(t *testing.T, srv *httptest.Server, method, path string, body io.Reader) (*http.Response, string) {
 	req, err := http.NewRequest(method, srv.URL+path, body)
 	require.NoError(t, err)
@@ -26,21 +53,6 @@ func testRequest(t *testing.T, srv *httptest.Server, method, path string, body i
 }
 
 func TestServerUpdHandler(t *testing.T) {
-	type request struct {
-		method string
-		path   string
-	}
-	type want struct {
-		// Response-related fields
-		code        int
-		respBody    string
-		contentType string
-
-		//Storage-related fields
-		gauge   string
-		counter string
-	}
-
 	tests := []struct {
 		name    string
 		request request
@@ -68,8 +80,8 @@ func TestServerUpdHandler(t *testing.T) {
 			},
 			want: want{
 				code:        http.StatusNotFound,
-				respBody:    "404 page not found\n",
-				contentType: "text/plain; charset=utf-8",
+				respBody:    notFoundResponse,
+				contentType: textPlain,
 				gauge:       `{}`,
 				counter:     `{}`,
 			},
@@ -83,7 +95,7 @@ func TestServerUpdHandler(t *testing.T) {
 			want: want{
 				code:        http.StatusBadRequest,
 				respBody:    errMetricPath + "\n",
-				contentType: "text/plain; charset=utf-8",
+				contentType: textPlain,
 				gauge:       `{}`,
 				counter:     `{}`,
 			},
@@ -97,7 +109,7 @@ func TestServerUpdHandler(t *testing.T) {
 			want: want{
 				code:        http.StatusBadRequest,
 				respBody:    errMetricValue + "\n",
-				contentType: "text/plain; charset=utf-8",
+				contentType: textPlain,
 				gauge:       `{}`,
 				counter:     `{}`,
 			},
@@ -131,12 +143,73 @@ func TestServerUpdHandler(t *testing.T) {
 			// Validate response
 			assert.Equal(t, tt.want.code, resp.StatusCode)
 			assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-Type"))
-
 			assert.Equal(t, tt.want.respBody, string(respBody))
 
 			// Validate server storage
 			assert.JSONEq(t, tt.want.gauge, gauge.String())
 			assert.JSONEq(t, tt.want.counter, counter.String())
+		})
+	}
+}
+
+func TestGetValHandler(t *testing.T) {
+	// I don't know what the best practices for initializing exernal storage is
+	// so I updated storage interface methods for modifying it: now they return
+	// the storage, so that I can chain several storage modification operations
+	// in one line (see the line for initializing the gauge storage below)
+
+	tests := []struct {
+		name    string
+		request request
+		want    want
+		state   state
+	}{
+		{
+			name: "no such metric name",
+			request: request{
+				method: http.MethodGet,
+				path:   "/" + ValuePath + "/" + GaugePath + "/" + "Apple",
+			},
+			want: want{
+				code:        http.StatusNotFound,
+				respBody:    notFoundResponse,
+				contentType: textPlain,
+			},
+			state: state{
+				gauge:   storage.New[monitor.Gauge]().Set("Peach", monitor.Gauge(4.0)),
+				counter: storage.New[monitor.Counter](),
+			},
+		},
+		{
+			name: "metric value is present",
+			request: request{
+				method: http.MethodGet,
+				path:   "/" + ValuePath + "/" + GaugePath + "/" + "Apple",
+			},
+			want: want{
+				code:        http.StatusOK,
+				respBody:    "20.000",
+				contentType: textPlain,
+			},
+			state: state{
+				gauge:   storage.New[monitor.Gauge]().Set("Apple", monitor.Gauge(20.0)),
+				counter: storage.New[monitor.Counter](),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(New(tt.state.gauge, tt.state.counter))
+			defer srv.Close()
+
+			resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil)
+			defer resp.Body.Close()
+
+			// Validate response
+			assert.Equal(t, tt.want.code, resp.StatusCode)
+			assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-Type"))
+			assert.Equal(t, tt.want.respBody, respBody)
 		})
 	}
 }
