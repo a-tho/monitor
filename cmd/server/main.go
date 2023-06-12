@@ -7,16 +7,17 @@ import (
 	monitor "github.com/a-tho/monitor/internal"
 	"github.com/a-tho/monitor/internal/server"
 	"github.com/a-tho/monitor/internal/storage"
+	"github.com/caarlos0/env"
 )
 
-var (
+type Config struct {
 	// Flags
-	srvAddr string
+	SrvAddr string `env:"ADDRESS"`
 
 	// Storage
 	gauge   monitor.MetricRepo[monitor.Gauge]
 	counter monitor.MetricRepo[monitor.Counter]
-)
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -25,12 +26,25 @@ func main() {
 }
 
 func run() error {
-	flag.StringVar(&srvAddr, "a", "localhost:8080", "address and port to run server")
+	var cfg Config
+	if err := parseConfig(&cfg); err != nil {
+		return err
+	}
+
+	cfg.gauge = storage.New[monitor.Gauge]()
+	cfg.counter = storage.New[monitor.Counter]()
+
+	mux := server.New(cfg.gauge, cfg.counter)
+	return http.ListenAndServe(cfg.SrvAddr, mux)
+}
+
+func parseConfig(cfg *Config) error {
+	flag.StringVar(&cfg.SrvAddr, "a", "localhost:8080", "address and port to run server")
 	flag.Parse()
 
-	gauge = storage.New[monitor.Gauge]()
-	counter = storage.New[monitor.Counter]()
-
-	mux := server.New(gauge, counter)
-	return http.ListenAndServe(srvAddr, mux)
+	if err := env.Parse(cfg); err != nil {
+		return err
+	}
+	
+	return nil
 }
