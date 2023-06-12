@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"net/http"
 
 	monitor "github.com/a-tho/monitor/internal"
@@ -9,6 +10,10 @@ import (
 )
 
 var (
+	// Flags
+	srvAddr string
+
+	// Storage
 	gauge   monitor.MetricRepo[monitor.Gauge]
 	counter monitor.MetricRepo[monitor.Counter]
 )
@@ -20,9 +25,12 @@ func main() {
 }
 
 func run() error {
+	flag.StringVar(&srvAddr, "a", "localhost:8080", "address and port to run server")
+	flag.Parse()
+
 	gauge = storage.New[monitor.Gauge]()
 	counter = storage.New[monitor.Counter]()
 
 	mux := server.New(gauge, counter)
-	return http.ListenAndServe("localhost:8080", mux)
+	return http.ListenAndServe(srvAddr, mux)
 }
