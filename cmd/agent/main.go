@@ -28,7 +28,9 @@ func run() error {
 	}
 
 	var obs monitor.Observer = telemetry.New(srvAddr, pollInterval, reportStep)
-	obs.Observe()
+	if err := obs.Observe(); err != nil {
+		return err
+	}
 
 	return nil
 }

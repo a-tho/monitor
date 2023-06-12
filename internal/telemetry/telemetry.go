@@ -36,7 +36,7 @@ func New(srvAddr string, pollInterval time.Duration, reportStep int) *Observer {
 	return &obs
 }
 
-func (o *Observer) Observe() {
+func (o *Observer) Observe() error {
 	pollCount := 0
 	for {
 		// Poll metrics
@@ -80,21 +80,32 @@ func (o *Observer) Observe() {
 		if pollCount%o.reportStep == 0 {
 			// Report to the server
 			for _, instance := range o.polled {
+				// Gauge metrics
 				for key, value := range instance.Gauges {
-					url := fmt.Sprintf("%s/%s/%s/%s/%d",
-						o.srvAddr, server.UpdPath, server.GaugePath, key, int(value))
-
-					client := resty.New()
-					resp, err := client.R().Post(url)
-					resp.Body()
-					if err != nil {
-						continue
+					url := fmt.Sprintf("http://%s/%s/%s/%s/%f",
+						o.srvAddr, server.UpdPath, server.GaugePath, key, float64(value))
+					if err := report(url); err != nil {
+						return err
 					}
 				}
-
+			}
+			// Counter metric
+			url := fmt.Sprintf("http://%s/%s/%s/%s/%d",
+				o.srvAddr, server.UpdPath, server.CounterPath, "PollCount", o.reportStep)
+			if err := report(url); err != nil {
+				return err
 			}
 		}
 
 		time.Sleep(o.pollInterval)
 	}
+}
+
+func report(url string) error {
+	client := resty.New()
+	_, err := client.R().Post(url)
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -20,12 +20,11 @@ type MetricRepo[T Gauge | Counter] interface {
 
 // An Observer is used to collect and transmit metrics.
 type Observer interface {
-	Observe()
+	Observe() error
 }
 
 // A MetricInstance holds a set of metrics collected roughly at the same moment
 // in time.
 type MetricInstance struct {
 	Gauges    map[string]Gauge
-	PollCount Counter
 }
