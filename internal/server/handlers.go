@@ -1,6 +1,8 @@
 package server
 
 import (
+	"bytes"
+	"html/template"
 	"net/http"
 	"strconv"
 
@@ -15,6 +17,11 @@ const (
 	errMetricValue = "invalid metric value"
 	errMetricHTML  = "failed to generate HTML page with metrics"
 
+	// HTML
+	metricsTemplate = `
+		{{range $key, $value := .}}
+			<p>{{$key}}: {{$value}}</p>
+		{{end}}`
 	pageHead = `
 	<!DOCTYPE html>
 	<html>
@@ -46,14 +53,14 @@ func (s *server) UpdHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, errMetricValue, http.StatusBadRequest)
 			return
 		}
-		s.gauge.Set(name, monitor.Gauge(v))
+		s.metrics.SetGauge(name, monitor.Gauge(v))
 	case CounterPath:
 		v, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			http.Error(w, errMetricValue, http.StatusBadRequest)
 			return
 		}
-		s.counter.Add(name, monitor.Counter(v))
+		s.metrics.AddCounter(name, monitor.Counter(v))
 	default:
 		http.Error(w, errMetricPath, http.StatusBadRequest)
 	}
@@ -65,7 +72,7 @@ func (s *server) GetValHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch typ {
 	case GaugePath:
-		value, ok := s.gauge.Get(name)
+		value, ok := s.metrics.GetGauge(name)
 		if !ok {
 			http.NotFound(w, r)
 			return
@@ -73,7 +80,7 @@ func (s *server) GetValHandler(w http.ResponseWriter, r *http.Request) {
 		v := strconv.FormatFloat(float64(value), 'f', -1, 64)
 		w.Write([]byte(v))
 	case CounterPath:
-		value, ok := s.counter.Get(name)
+		value, ok := s.metrics.GetCounter(name)
 		if !ok {
 			http.NotFound(w, r)
 			return
@@ -86,13 +93,20 @@ func (s *server) GetValHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
-	gaugeBuf, err := s.gauge.HTML()
+	tmpl, err := template.New("metrics").Parse(metricsTemplate)
 	if err != nil {
 		http.Error(w, errMetricHTML, http.StatusInternalServerError)
 		return
 	}
-	counterBuf, err := s.counter.HTML()
-	if err != nil {
+
+	var gaugeBuf bytes.Buffer
+	if err = tmpl.Execute(&gaugeBuf, s.metrics.GetAllGauge()); err != nil {
+		http.Error(w, errMetricHTML, http.StatusInternalServerError)
+		return
+	}
+
+	var counterBuf bytes.Buffer
+	if err = tmpl.Execute(&counterBuf, s.metrics.GetAllCounter()); err != nil {
 		http.Error(w, errMetricHTML, http.StatusInternalServerError)
 		return
 	}

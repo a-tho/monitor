@@ -36,13 +36,13 @@ func TestStorageSetGauge(t *testing.T) {
 		},
 	}
 
-	s := New[monitor.Gauge]()
+	s := New()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			s.Set(tt.args.k, tt.args.v)
-			assert.JSONEq(t, tt.want, s.String())
+			s.SetGauge(tt.args.k, tt.args.v)
+			assert.JSONEq(t, tt.want, s.StringGauge())
 		})
 	}
 }
@@ -75,13 +75,13 @@ func TestStorageAddCounter(t *testing.T) {
 		},
 	}
 
-	s := New[monitor.Counter]()
+	s := New()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			s.Add(tt.args.k, tt.args.v)
-			assert.JSONEq(t, tt.want, s.String())
+			s.AddCounter(tt.args.k, tt.args.v)
+			assert.JSONEq(t, tt.want, s.StringCounter())
 		})
 	}
 }

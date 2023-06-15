@@ -36,8 +36,7 @@ type want struct {
 }
 
 type state struct {
-	gauge   monitor.MetricRepo[monitor.Gauge]
-	counter monitor.MetricRepo[monitor.Counter]
+	metrics monitor.MetricRepo
 }
 
 func testRequest(t *testing.T, srv *httptest.Server, method, path string, body io.Reader) (*http.Response, string) {
@@ -133,9 +132,8 @@ func TestServerUpdHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gauge := storage.New[monitor.Gauge]()
-			counter := storage.New[monitor.Counter]()
-			srv := httptest.NewServer(NewServer(gauge, counter))
+			metrics := storage.New()
+			srv := httptest.NewServer(NewServer(metrics))
 			defer srv.Close()
 
 			resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil)
@@ -147,8 +145,8 @@ func TestServerUpdHandler(t *testing.T) {
 			assert.Equal(t, tt.want.respBody, string(respBody))
 
 			// Validate server storage
-			assert.JSONEq(t, tt.want.gauge, gauge.String())
-			assert.JSONEq(t, tt.want.counter, counter.String())
+			assert.JSONEq(t, tt.want.gauge, metrics.StringGauge())
+			assert.JSONEq(t, tt.want.counter, metrics.StringCounter())
 		})
 	}
 }
@@ -177,8 +175,7 @@ func TestGetValHandler(t *testing.T) {
 				contentType: textPlain,
 			},
 			state: state{
-				gauge:   storage.New[monitor.Gauge]().Set("Peach", monitor.Gauge(4.0)),
-				counter: storage.New[monitor.Counter](),
+				metrics: storage.New().SetGauge("Peach", monitor.Gauge(4.0)),
 			},
 		},
 		{
@@ -193,15 +190,14 @@ func TestGetValHandler(t *testing.T) {
 				contentType: textPlain,
 			},
 			state: state{
-				gauge:   storage.New[monitor.Gauge]().Set("Apple", monitor.Gauge(20.0)),
-				counter: storage.New[monitor.Counter](),
+				metrics: storage.New().SetGauge("Apple", monitor.Gauge(20.0)),
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv := httptest.NewServer(NewServer(tt.state.gauge, tt.state.counter))
+			srv := httptest.NewServer(NewServer(tt.state.metrics))
 			defer srv.Close()
 
 			resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil)

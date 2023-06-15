@@ -11,16 +11,14 @@ import (
 )
 
 type server struct {
-	gauge   monitor.MetricRepo[monitor.Gauge]
-	counter monitor.MetricRepo[monitor.Counter]
+	metrics monitor.MetricRepo
 }
 
 // NewServer creates a new multiplexer with configured handlers
 func NewServer(
-	gauge monitor.MetricRepo[monitor.Gauge],
-	counter monitor.MetricRepo[monitor.Counter],
+	metrics monitor.MetricRepo,
 ) *chi.Mux {
-	srv := server{gauge: gauge, counter: counter}
+	srv := server{metrics: metrics}
 	mux := chi.NewRouter()
 
 	mux.Get("/", srv.GetAllHandler)

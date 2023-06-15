@@ -2,65 +2,69 @@
 package storage
 
 import (
-	"bytes"
 	"encoding/json"
-	"html/template"
 
 	monitor "github.com/a-tho/monitor/internal"
 )
 
-const (
-	htmlMetricsTemplate = `
-    {{range $key, $value := .}}
-        <p>{{$key}}: {{$value}}</p>
-    {{end}}`
-)
-
 // MemStorage represents the storage.
-type MemStorage[T monitor.Gauge | monitor.Counter] struct {
-	data map[string]T
+type MemStorage struct {
+	dataGauge   map[string]monitor.Gauge
+	dataCounter map[string]monitor.Counter
 }
 
 // New returns an initialized storage.
-func New[T monitor.Gauge | monitor.Counter]() *MemStorage[T] {
-	return &MemStorage[T]{
-		data: make(map[string]T),
+func New() *MemStorage {
+	return &MemStorage{
+		dataGauge:   make(map[string]monitor.Gauge),
+		dataCounter: make(map[string]monitor.Counter),
 	}
 }
 
-// Set inserts or updates a value v for the key k.
-func (s *MemStorage[T]) Set(k string, v T) monitor.MetricRepo[T] {
-	s.data[k] = v
+// SetGauge inserts or updates a gauge metric value v for the key k.
+func (s *MemStorage) SetGauge(k string, v monitor.Gauge) monitor.MetricRepo {
+	s.dataGauge[k] = v
 	return s
 }
 
-// Add adds v to the value for the key k.
-func (s *MemStorage[T]) Add(k string, v T) monitor.MetricRepo[T] {
-	s.data[k] += v
+// AddCounter add a counter metric value v for the key k.
+func (s *MemStorage) AddCounter(k string, v monitor.Counter) monitor.MetricRepo {
+	s.dataCounter[k] += v
 	return s
 }
 
-// Get retrieves the value for the key k.
-func (s *MemStorage[T]) Get(k string) (v T, ok bool) {
-	v, ok = s.data[k]
+// GetGauge retrieves the gauge value for the key k.
+func (s *MemStorage) GetGauge(k string) (v monitor.Gauge, ok bool) {
+	v, ok = s.dataGauge[k]
 	return
 }
 
-func (s *MemStorage[T]) String() string {
-	out, _ := json.Marshal(s.data)
+// GetCounter retrieves the counter value for the key k.
+func (s *MemStorage) GetCounter(k string) (v monitor.Counter, ok bool) {
+	v, ok = s.dataCounter[k]
+	return
+}
+
+// StringGauge produces a JSON representation of gauge metrics kept in the
+// storage
+func (s *MemStorage) StringGauge() string {
+	out, _ := json.Marshal(s.dataGauge)
 	return string(out)
 }
 
-func (s MemStorage[T]) HTML() (*bytes.Buffer, error) {
-	tmpl, err := template.New("metrics").Parse(htmlMetricsTemplate)
-	if err != nil {
-		return nil, err
-	}
+// StringCounter produces a JSON representation of counter metrics kept in the
+// storage
+func (s *MemStorage) StringCounter() string {
+	out, _ := json.Marshal(s.dataCounter)
+	return string(out)
+}
 
-	var buf bytes.Buffer
-	if err = tmpl.Execute(&buf, s.data); err != nil {
-		return nil, err
-	}
+// StringCounter exposes the substorage with gauge metrics
+func (s *MemStorage) GetAllGauge() map[string]monitor.Gauge {
+	return s.dataGauge
+}
 
-	return &buf, nil
+// StringCounter exposes the substorage with counter metrics
+func (s *MemStorage) GetAllCounter() map[string]monitor.Counter {
+	return s.dataCounter
 }

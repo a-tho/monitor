@@ -16,8 +16,7 @@ type Config struct {
 	SrvAddr string `env:"ADDRESS"`
 
 	// Storage
-	gauge   monitor.MetricRepo[monitor.Gauge]
-	counter monitor.MetricRepo[monitor.Counter]
+	metrics monitor.MetricRepo
 }
 
 func main() {
@@ -32,10 +31,9 @@ func run() error {
 		return err
 	}
 
-	cfg.gauge = storage.New[monitor.Gauge]()
-	cfg.counter = storage.New[monitor.Counter]()
+	cfg.metrics = storage.New()
 
-	mux := server.NewServer(cfg.gauge, cfg.counter)
+	mux := server.NewServer(cfg.metrics)
 	return http.ListenAndServe(cfg.SrvAddr, mux)
 }
 
