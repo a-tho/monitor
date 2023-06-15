@@ -35,7 +35,7 @@ func run() error {
 	cfg.gauge = storage.New[monitor.Gauge]()
 	cfg.counter = storage.New[monitor.Counter]()
 
-	mux := server.New(cfg.gauge, cfg.counter)
+	mux := server.NewServer(cfg.gauge, cfg.counter)
 	return http.ListenAndServe(cfg.SrvAddr, mux)
 }
 

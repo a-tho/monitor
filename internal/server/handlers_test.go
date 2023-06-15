@@ -135,7 +135,7 @@ func TestServerUpdHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gauge := storage.New[monitor.Gauge]()
 			counter := storage.New[monitor.Counter]()
-			srv := httptest.NewServer(New(gauge, counter))
+			srv := httptest.NewServer(NewServer(gauge, counter))
 			defer srv.Close()
 
 			resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil)
@@ -201,7 +201,7 @@ func TestGetValHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv := httptest.NewServer(New(tt.state.gauge, tt.state.counter))
+			srv := httptest.NewServer(NewServer(tt.state.gauge, tt.state.counter))
 			defer srv.Close()
 
 			resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil)

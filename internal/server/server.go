@@ -15,8 +15,8 @@ type server struct {
 	counter monitor.MetricRepo[monitor.Counter]
 }
 
-// New creates a new multiplexer with configured handlers
-func New(
+// NewServer creates a new multiplexer with configured handlers
+func NewServer(
 	gauge monitor.MetricRepo[monitor.Gauge],
 	counter monitor.MetricRepo[monitor.Counter],
 ) *chi.Mux {
