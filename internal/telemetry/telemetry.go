@@ -7,9 +7,10 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/go-resty/resty/v2"
+
 	monitor "github.com/a-tho/monitor/internal"
 	"github.com/a-tho/monitor/internal/server"
-	"github.com/go-resty/resty/v2"
 )
 
 type Observer struct {

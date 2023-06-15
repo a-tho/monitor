@@ -4,10 +4,11 @@ import (
 	"flag"
 	"net/http"
 
+	"github.com/caarlos0/env"
+
 	monitor "github.com/a-tho/monitor/internal"
 	"github.com/a-tho/monitor/internal/server"
 	"github.com/a-tho/monitor/internal/storage"
-	"github.com/caarlos0/env"
 )
 
 type Config struct {
@@ -45,6 +46,6 @@ func parseConfig(cfg *Config) error {
 	if err := env.Parse(cfg); err != nil {
 		return err
 	}
-	
+
 	return nil
 }

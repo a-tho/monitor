@@ -6,10 +6,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	monitor "github.com/a-tho/monitor/internal"
-	"github.com/a-tho/monitor/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	monitor "github.com/a-tho/monitor/internal"
+	"github.com/a-tho/monitor/internal/storage"
 )
 
 const (

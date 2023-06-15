@@ -3,8 +3,9 @@ package storage
 import (
 	"testing"
 
-	monitor "github.com/a-tho/monitor/internal"
 	"github.com/stretchr/testify/assert"
+
+	monitor "github.com/a-tho/monitor/internal"
 )
 
 func TestStorageSetGauge(t *testing.T) {

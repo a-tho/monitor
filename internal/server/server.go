@@ -5,8 +5,9 @@ package server
 import (
 	"fmt"
 
-	monitor "github.com/a-tho/monitor/internal"
 	"github.com/go-chi/chi/v5"
+
+	monitor "github.com/a-tho/monitor/internal"
 )
 
 type server struct {

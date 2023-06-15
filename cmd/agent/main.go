@@ -4,9 +4,10 @@ import (
 	"errors"
 	"flag"
 
+	"github.com/caarlos0/env"
+
 	monitor "github.com/a-tho/monitor/internal"
 	"github.com/a-tho/monitor/internal/telemetry"
-	"github.com/caarlos0/env"
 )
 
 type Config struct {
