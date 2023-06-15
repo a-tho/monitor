@@ -189,7 +189,7 @@ func TestGetValHandler(t *testing.T) {
 			},
 			want: want{
 				code:        http.StatusOK,
-				respBody:    "20.00",
+				respBody:    "20.000",
 				contentType: textPlain,
 			},
 			state: state{
