@@ -70,7 +70,7 @@ func (s *server) GetValHandler(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
-		v := strconv.FormatFloat(float64(value), 'f', 3, 64)
+		v := strconv.FormatFloat(float64(value), 'f', 2, 64)
 		w.Write([]byte(v))
 	case CounterPath:
 		value, ok := s.counter.Get(name)
