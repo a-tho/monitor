@@ -19,7 +19,6 @@ const (
 	errMetricName       = "invalid metric name"
 	errMetricValue      = "invalid metric value"
 	errMetricHTML       = "failed to generate HTML page with metrics"
-	errInvalidMediaType = "invalid media type"
 
 	// HTML
 	metricsTemplate = `
@@ -75,7 +74,7 @@ func (s *server) UpdateLegacy(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) Update(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get(contentType) != applicationJSON {
-		http.Error(w, errInvalidMediaType, http.StatusUnsupportedMediaType)
+		http.NotFound(w, r)
 		return
 	}
 
@@ -150,7 +149,7 @@ func (s *server) ValueLegacy(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) Value(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get(contentType) != applicationJSON {
-		http.Error(w, errInvalidMediaType, http.StatusUnsupportedMediaType)
+		http.NotFound(w, r)
 		return
 	}
 
