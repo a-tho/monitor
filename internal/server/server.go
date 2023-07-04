@@ -36,7 +36,7 @@ func NewServer(
 	path = fmt.Sprintf("/%s/{%s}/{%s}", ValuePath, TypePath, NamePath)
 	mux.Get(path, srv.WithLogging(srv.ValueLegacy))
 
-	path = fmt.Sprintf("/%s", ValuePath)
+	path = fmt.Sprintf("/%s/", ValuePath)
 	mux.Post(path, srv.WithLogging(srv.Value))
 
 	return mux
