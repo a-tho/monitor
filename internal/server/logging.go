@@ -32,7 +32,7 @@ func (s server) WithLogging(handler func(w http.ResponseWriter, r *http.Request)
 	wrapped := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		respData := respData{}
+		respData := respData{code: 200}
 
 		lw := logResponseWriter{ResponseWriter: w, data: &respData}
 

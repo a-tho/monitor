@@ -2,6 +2,7 @@
 package telemetry
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"runtime"
@@ -13,23 +14,34 @@ import (
 	"github.com/a-tho/monitor/internal/server"
 )
 
+const (
+	contentType     = "Content-Type"
+	applicationJSON = "application/json"
+)
+
 type Observer struct {
-	srvAddr        string
+	SrvAddr        string
 	pollInterval   time.Duration
 	reportStep     int
 	reportInterval time.Duration
 
 	// local storage for the polled metrics that have not been reported yet
-	polled []monitor.MetricInstance
+	polled []MetricInstance
+}
+
+// A MetricInstance holds a set of metrics collected roughly at the same moment
+// in time.
+type MetricInstance struct {
+	Gauges map[string]monitor.Gauge
 }
 
 func NewObserver(srvAddr string, pollInterval, reportStep int) *Observer {
 	obs := Observer{
-		srvAddr:        srvAddr,
+		SrvAddr:        srvAddr,
 		pollInterval:   time.Duration(pollInterval) * time.Second,
 		reportStep:     reportStep,
 		reportInterval: time.Duration(pollInterval*reportStep) * time.Second,
-		polled:         make([]monitor.MetricInstance, reportStep),
+		polled:         make([]MetricInstance, reportStep),
 	}
 	for i := range obs.polled {
 		obs.polled[i].Gauges = make(map[string]monitor.Gauge)
@@ -94,26 +106,45 @@ func (o *Observer) poll(pollCount int) {
 func (o *Observer) report() error {
 	for _, instance := range o.polled {
 		// Gauge metrics
-		for key, value := range instance.Gauges {
-			url := fmt.Sprintf("http://%s/%s/%s/%s/%f",
-				o.srvAddr, server.UpdPath, server.GaugePath, key, float64(value))
-			if err := send(url); err != nil {
+		for key, val := range instance.Gauges {
+			valFloat := float64(val)
+			metric := monitor.Metrics{
+				ID:    key,
+				MType: server.GaugePath,
+				Value: &valFloat,
+			}
+			bodyBytes, err := json.Marshal(metric)
+			if err != nil {
+				return err
+			}
+			url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdPath)
+			if err := send(url, bodyBytes); err != nil {
 				return err
 			}
 		}
 	}
+
 	// Counter metric
-	url := fmt.Sprintf("http://%s/%s/%s/%s/%d",
-		o.srvAddr, server.UpdPath, server.CounterPath, "PollCount", o.reportStep)
-	if err := send(url); err != nil {
+	delta := int64(o.reportStep)
+	metric := monitor.Metrics{
+		ID:    "PollCount",
+		MType: server.CounterPath,
+		Delta: &delta,
+	}
+	bodyBytes, err := json.Marshal(metric)
+	if err != nil {
+		return err
+	}
+	url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdPath)
+	if err := send(url, bodyBytes); err != nil {
 		return err
 	}
 	return nil
 }
 
-func send(url string) error {
+func send(url string, body []byte) error {
 	client := resty.New()
-	_, err := client.R().Post(url)
+	_, err := client.R().SetBody(body).SetHeader(contentType, applicationJSON).Post(url)
 	if err != nil {
 		return err
 	}
