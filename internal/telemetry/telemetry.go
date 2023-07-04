@@ -134,7 +134,7 @@ func (o *Observer) report() error {
 
 func (o *Observer) update(metric monitor.Metrics) error {
 	// Prepare request arguments
-	url := fmt.Sprintf("http://%s/%s", o.SrvAddr, server.UpdPath)
+	url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdPath)
 	bodyBytes, err := json.Marshal(metric)
 	if err != nil {
 		return err
