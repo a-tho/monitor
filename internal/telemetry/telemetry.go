@@ -113,12 +113,7 @@ func (o *Observer) report() error {
 				MType: server.GaugePath,
 				Value: &valFloat,
 			}
-			bodyBytes, err := json.Marshal(metric)
-			if err != nil {
-				return err
-			}
-			url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdPath)
-			if err := send(url, bodyBytes); err != nil {
+			if err := o.update(metric); err != nil {
 				return err
 			}
 		}
@@ -131,20 +126,23 @@ func (o *Observer) report() error {
 		MType: server.CounterPath,
 		Delta: &delta,
 	}
-	bodyBytes, err := json.Marshal(metric)
-	if err != nil {
-		return err
-	}
-	url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdPath)
-	if err := send(url, bodyBytes); err != nil {
+	if err := o.update(metric); err != nil {
 		return err
 	}
 	return nil
 }
 
-func send(url string, body []byte) error {
+func (o *Observer) update(metric monitor.Metrics) error {
+	// Prepare request arguments
+	url := fmt.Sprintf("http://%s/%s", o.SrvAddr, server.UpdPath)
+	bodyBytes, err := json.Marshal(metric)
+	if err != nil {
+		return err
+	}
+
+	// Prepare and send request
 	client := resty.New()
-	_, err := client.R().SetBody(body).SetHeader(contentType, applicationJSON).Post(url)
+	_, err = client.R().SetBody(bodyBytes).SetHeader(contentType, applicationJSON).Post(url)
 	if err != nil {
 		return err
 	}
