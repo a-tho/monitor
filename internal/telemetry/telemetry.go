@@ -56,9 +56,7 @@ func (o *Observer) Observe() error {
 
 		pollCount++
 		if pollCount%o.reportStep == 0 {
-			if err := o.report(); err != nil {
-				return err
-			}
+			_ = o.report() // don't exit if failed to send metrics
 		}
 
 		time.Sleep(o.pollInterval)
