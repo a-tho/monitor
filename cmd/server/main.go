@@ -45,7 +45,11 @@ func run() error {
 	defer cfg.metrics.Close()
 
 	mux := server.NewServer(cfg.metrics, log)
-	go http.ListenAndServe(cfg.SrvAddr, mux)
+	go func() {
+		if err := http.ListenAndServe(cfg.SrvAddr, mux); err != nil {
+			panic(err)
+		}
+	}()
 
 	// Write to the file every StoreInterval seconds
 	var ticker <-chan time.Time
