@@ -25,7 +25,7 @@ func NewServer(
 	srv := server{metrics: metrics, log: log}
 	mux := chi.NewRouter()
 
-	mux.Get("/", srv.WithLogging(srv.All))
+	mux.Get("/", srv.WithLogging(srv.WithCompressing(srv.All)))
 
 	path := fmt.Sprintf("/%s/{%s}/{%s}/{%s}", UpdPath, TypePath, NamePath, ValuePath)
 	mux.Post(path, srv.WithLogging(srv.UpdateLegacy))
