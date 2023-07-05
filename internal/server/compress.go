@@ -20,9 +20,7 @@ func newCompReponseWriter(w http.ResponseWriter) *compResponseWriter {
 }
 
 func (w *compResponseWriter) WriteHeader(statusCode int) {
-	if statusCode < 300 {
-		w.Header().Add(contentEncoding, encodingGzip)
-	}
+	w.Header().Add(contentEncoding, encodingGzip)
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 
