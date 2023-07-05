@@ -26,7 +26,7 @@ func New(fileStoragePath string, syncMode bool, restore bool) *MemStorage {
 	}
 
 	if fileStoragePath != "" {
-		file, err := os.OpenFile(fileStoragePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+		file, err := os.OpenFile(fileStoragePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
 		if err != nil {
 			return &storage
 		}
