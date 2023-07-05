@@ -41,6 +41,11 @@ func run() error {
 	}
 	log := cfg.initLogger()
 
+	log.Info().Str("SrvAddr", cfg.SrvAddr).Msg("")
+	log.Info().Dur("StoreInterval", cfg.StoreInterval).Msg("")
+	log.Info().Str("FileStoragePath", cfg.FileStoragePath).Msg("")
+	log.Info().Bool("Restore", cfg.Restore).Msg("")
+
 	cfg.metrics = storage.New(cfg.FileStoragePath, cfg.StoreInterval == 0, cfg.Restore)
 	defer cfg.metrics.Close()
 
