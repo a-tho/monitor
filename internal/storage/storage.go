@@ -122,10 +122,16 @@ func (s *MemStorage) GetAllCounter() map[string]monitor.Counter {
 // }
 
 func (s *MemStorage) Close() error {
+	if s.file == nil {
+		return nil
+	}
 	return s.file.Close()
 }
 
 func (s *MemStorage) WriteToFile() error {
+	if s.file == nil {
+		return nil
+	}
 	s.file.Truncate(0)
 	enc := json.NewEncoder(s.file)
 	return enc.Encode(s)
