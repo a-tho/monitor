@@ -20,7 +20,6 @@ func newCompReponseWriter(w http.ResponseWriter) *compResponseWriter {
 }
 
 func (w *compResponseWriter) WriteHeader(statusCode int) {
-	w.Header().Add(contentEncoding, encodingGzip)
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 
@@ -73,6 +72,7 @@ func (s server) WithCompressing(handler func(w http.ResponseWriter, r *http.Requ
 		encodings = r.Header.Values(acceptEncoding)
 		canCompress := contains(encodings, encodingGzip)
 		if canCompress {
+			w.Header().Add(contentEncoding, encodingGzip)
 			compW := newCompReponseWriter(w)
 			defer compW.Close()
 			w = compW
