@@ -17,12 +17,12 @@ import (
 
 type Config struct {
 	// Flags
-	SrvAddr         string        `env:"ADDRESS"`
-	LogLevel        string        `env:"LOG_LEVEL"`
-	LogFormat       string        `env:"LOG_FORMAT"`
-	StoreInterval   time.Duration `env:"STORE_INTERVAL"`
-	FileStoragePath string        `env:"FILE_STORAGE_PATH"`
-	Restore         bool          `env:"RESTORE"`
+	SrvAddr         string `env:"ADDRESS"`
+	LogLevel        string `env:"LOG_LEVEL"`
+	LogFormat       string `env:"LOG_FORMAT"`
+	StoreInterval   int    `env:"STORE_INTERVAL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	Restore         bool   `env:"RESTORE"`
 
 	// Storage
 	metrics monitor.MetricRepo
@@ -41,11 +41,6 @@ func run() error {
 	}
 	log := cfg.initLogger()
 
-	log.Info().Str("SrvAddr", cfg.SrvAddr).Msg("")
-	log.Info().Dur("StoreInterval", cfg.StoreInterval).Msg("")
-	log.Info().Str("FileStoragePath", cfg.FileStoragePath).Msg("")
-	log.Info().Bool("Restore", cfg.Restore).Msg("")
-
 	cfg.metrics = storage.New(cfg.FileStoragePath, cfg.StoreInterval == 0, cfg.Restore)
 	defer cfg.metrics.Close()
 
@@ -59,7 +54,7 @@ func run() error {
 	// Write to the file every StoreInterval seconds
 	var ticker <-chan time.Time
 	if cfg.StoreInterval > 0 {
-		t := time.NewTicker(cfg.StoreInterval)
+		t := time.NewTicker(time.Duration(cfg.StoreInterval) * time.Second)
 		defer t.Stop()
 		ticker = t.C
 	}
@@ -81,7 +76,7 @@ func run() error {
 func (c *Config) parseConfig() error {
 	flag.StringVar(&c.SrvAddr, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&c.LogLevel, "log", "debug", "log level")
-	flag.DurationVar(&c.StoreInterval, "i", 300*time.Second, "interval in seconds after which readings saved to disk")
+	flag.IntVar(&c.StoreInterval, "i", 300, "interval in seconds after which readings saved to disk")
 	flag.StringVar(&c.FileStoragePath, "f", "/tmp/metrics-db.json", "file where to save current values")
 	flag.BoolVar(&c.Restore, "r", true, "whether or not to load previously saved values on server start")
 	flag.Parse()
