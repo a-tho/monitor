@@ -13,12 +13,13 @@ import (
 )
 
 const (
-	errPostMethod       = "use POST for saving metrics"
-	errMetricPath       = "invalid metric path"
-	errMetricType       = "invalid metric type"
-	errMetricName       = "invalid metric name"
-	errMetricValue      = "invalid metric value"
-	errMetricHTML       = "failed to generate HTML page with metrics"
+	errPostMethod  = "use POST for saving metrics"
+	errMetricPath  = "invalid metric path"
+	errMetricType  = "invalid metric type"
+	errMetricName  = "invalid metric name"
+	errMetricValue = "invalid metric value"
+	errMetricHTML  = "failed to generate HTML page with metrics"
+	errDecompress  = "failed to decompress request body"
 
 	// HTML
 	metricsTemplate = `
@@ -38,8 +39,12 @@ const (
 	</body>
 	</html>`
 
-	contentType     = "Content-Type"
-	applicationJSON = "application/json"
+	contentType         = "Content-Type"
+	contentEncoding     = "Content-Encoding"
+	acceptEncoding      = "Accept-Encoding"
+	typeApplicationJSON = "application/json"
+	typeTextHTML        = "text/html"
+	encodingGzip        = "gzip"
 )
 
 // UpdateLegacy handles requests for adding metrics
@@ -73,7 +78,7 @@ func (s *server) UpdateLegacy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) Update(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get(contentType) != applicationJSON {
+	if r.Header.Get(contentType) != typeApplicationJSON {
 		http.NotFound(w, r)
 		return
 	}
@@ -116,7 +121,7 @@ func (s *server) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	input.Value = &respValue
-	w.Header().Set(contentType, applicationJSON)
+	w.Header().Set(contentType, typeApplicationJSON)
 	enc := json.NewEncoder(w)
 	enc.Encode(input)
 }
@@ -148,7 +153,7 @@ func (s *server) ValueLegacy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) Value(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get(contentType) != applicationJSON {
+	if r.Header.Get(contentType) != typeApplicationJSON {
 		http.NotFound(w, r)
 		return
 	}
@@ -187,7 +192,7 @@ func (s *server) Value(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set(contentType, applicationJSON)
+	w.Header().Set(contentType, typeApplicationJSON)
 	enc := json.NewEncoder(w)
 	enc.Encode(input)
 }

@@ -2,21 +2,18 @@
 package telemetry
 
 import (
-	"encoding/json"
-	"fmt"
 	"math/rand"
 	"runtime"
 	"time"
 
-	"github.com/go-resty/resty/v2"
-
 	monitor "github.com/a-tho/monitor/internal"
-	"github.com/a-tho/monitor/internal/server"
 )
 
 const (
-	contentType     = "Content-Type"
-	applicationJSON = "application/json"
+	contentEncoding     = "Content-Encoding"
+	contentType         = "Content-Type"
+	encodingGzip        = "gzip"
+	typeApplicationJSON = "application/json"
 )
 
 type Observer struct {
@@ -99,50 +96,4 @@ func (o *Observer) poll(pollCount int) {
 
 	randomValue := rand.New(rand.NewSource(time.Now().Unix())).Float64()
 	o.polled[countSinceReport].Gauges["RandomValue"] = monitor.Gauge(randomValue)
-}
-
-func (o *Observer) report() error {
-	for _, instance := range o.polled {
-		// Gauge metrics
-		for key, val := range instance.Gauges {
-			valFloat := float64(val)
-			metric := monitor.Metrics{
-				ID:    key,
-				MType: server.GaugePath,
-				Value: &valFloat,
-			}
-			if err := o.update(metric); err != nil {
-				return err
-			}
-		}
-	}
-
-	// Counter metric
-	delta := int64(o.reportStep)
-	metric := monitor.Metrics{
-		ID:    "PollCount",
-		MType: server.CounterPath,
-		Delta: &delta,
-	}
-	if err := o.update(metric); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (o *Observer) update(metric monitor.Metrics) error {
-	// Prepare request arguments
-	url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdPath)
-	bodyBytes, err := json.Marshal(metric)
-	if err != nil {
-		return err
-	}
-
-	// Prepare and send request
-	client := resty.New()
-	_, err = client.R().SetBody(bodyBytes).SetHeader(contentType, applicationJSON).Post(url)
-	if err != nil {
-		return err
-	}
-	return nil
 }
