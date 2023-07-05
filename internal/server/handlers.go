@@ -121,7 +121,7 @@ func (s *server) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	input.Value = &respValue
-	w.Header().Set(contentType, typeApplicationJSON)
+	w.Header().Add(contentType, typeApplicationJSON)
 	enc := json.NewEncoder(w)
 	enc.Encode(input)
 }
@@ -192,12 +192,17 @@ func (s *server) Value(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set(contentType, typeApplicationJSON)
+	w.Header().Add(contentType, typeApplicationJSON)
 	enc := json.NewEncoder(w)
 	enc.Encode(input)
 }
 
 func (s *server) All(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get(contentType) != typeTextHTML {
+		http.NotFound(w, r)
+		return
+	}
+
 	tmpl, err := template.New("metrics").Parse(metricsTemplate)
 	if err != nil {
 		http.Error(w, errMetricHTML, http.StatusInternalServerError)
@@ -216,6 +221,7 @@ func (s *server) All(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Add(contentType, typeTextHTML)
 	w.Write([]byte(pageHead))
 	w.Write([]byte(gaugeHeader))
 	w.Write(gaugeBuf.Bytes())
