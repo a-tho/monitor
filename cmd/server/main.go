@@ -4,6 +4,7 @@ import (
 	"flag"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/caarlos0/env"
@@ -16,9 +17,12 @@ import (
 
 type Config struct {
 	// Flags
-	SrvAddr   string `env:"ADDRESS"`
-	LogLevel  string `env:"LOG_LEVEL"`
-	LogFormat string `env:"LOG_FORMAT"`
+	SrvAddr         string        `env:"ADDRESS"`
+	LogLevel        string        `env:"LOG_LEVEL"`
+	LogFormat       string        `env:"LOG_FORMAT"`
+	StoreInterval   time.Duration `env:"STORE_INTERVAL"`
+	FileStoragePath string        `env:"FILE_STORAGE_PATH"`
+	Restore         bool          `env:"RESTORE"`
 
 	// Storage
 	metrics monitor.MetricRepo
@@ -37,15 +41,40 @@ func run() error {
 	}
 	log := cfg.initLogger()
 
-	cfg.metrics = storage.New()
+	cfg.metrics = storage.New(cfg.StoreInterval, cfg.FileStoragePath, cfg.Restore)
+	defer cfg.metrics.Close()
 
 	mux := server.NewServer(cfg.metrics, log)
-	return http.ListenAndServe(cfg.SrvAddr, mux)
+	go http.ListenAndServe(cfg.SrvAddr, mux)
+
+	// Write to the file every StoreInterval seconds
+	var ticker <-chan time.Time
+	if cfg.StoreInterval != 0 {
+		t := time.NewTicker(cfg.StoreInterval)
+		defer t.Stop()
+		ticker = t.C
+	}
+
+	// and close the file when SIGINT is passed
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+
+	for {
+		select {
+		case <-ticker:
+			cfg.metrics.WriteToFile()
+		case <-quit:
+			return cfg.metrics.WriteToFile()
+		}
+	}
 }
 
 func (c *Config) parseConfig() error {
 	flag.StringVar(&c.SrvAddr, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&c.LogLevel, "log", "debug", "log level")
+	flag.DurationVar(&c.StoreInterval, "i", 300*time.Second, "interval in seconds after which readings saved to disk")
+	flag.StringVar(&c.FileStoragePath, "f", "/tmp/metrics-db.json", "file where to save current values")
+	flag.BoolVar(&c.Restore, "r", true, "whether or not to load previously saved values on server start")
 	flag.Parse()
 
 	if err := env.Parse(c); err != nil {
@@ -59,8 +88,6 @@ func (c Config) initLogger() zerolog.Logger {
 	level := zerolog.ErrorLevel
 	if newLevel, err := zerolog.ParseLevel(c.LogLevel); err == nil {
 		level = newLevel
-	} else {
-		println("nope")
 	}
 	out := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.StampMicro}
 	logCtx := zerolog.New(out).Level(level).With().Timestamp().Stack().Caller()

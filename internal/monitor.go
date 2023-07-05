@@ -24,6 +24,11 @@ type MetricRepo interface {
 	StringCounter() string
 	GetAllCounter() map[string]Counter
 	// HTML() (*bytes.Buffer, error)
+
+	// MarshalJSON() ([]byte, error)
+	// UnmarshalJSON(data []byte) error
+	WriteToFile() error
+	Close() error
 }
 
 // An Observer is used to collect and transmit metrics.

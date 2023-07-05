@@ -3,68 +3,130 @@ package storage
 
 import (
 	"encoding/json"
+	"os"
+	"time"
 
 	monitor "github.com/a-tho/monitor/internal"
 )
 
 // MemStorage represents the storage.
 type MemStorage struct {
-	dataGauge   map[string]monitor.Gauge
-	dataCounter map[string]monitor.Counter
+	DataGauge   map[string]monitor.Gauge
+	DataCounter map[string]monitor.Counter
+
+	storeInterval time.Duration
+	file          *os.File
+	// Whether recording is synchronuous
+	syncMode bool
 }
 
 // New returns an initialized storage.
-func New() *MemStorage {
-	return &MemStorage{
-		dataGauge:   make(map[string]monitor.Gauge),
-		dataCounter: make(map[string]monitor.Counter),
+func New(storeInterval time.Duration, fileStoragePath string, restore bool) *MemStorage {
+	storage := MemStorage{
+		DataGauge:   make(map[string]monitor.Gauge),
+		DataCounter: make(map[string]monitor.Counter),
 	}
+
+	if fileStoragePath != "" {
+		file, err := os.OpenFile(fileStoragePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+		if err != nil {
+			return &storage
+		}
+
+		if restore {
+			dec := json.NewDecoder(file)
+			var storageIn MemStorage
+			if err = dec.Decode(&storageIn); err == nil {
+				storage = storageIn
+			}
+		}
+
+		storage.storeInterval = storeInterval
+		storage.file = file
+
+		if storeInterval == 0 {
+			storage.syncMode = true
+		}
+	}
+
+	return &storage
 }
 
 // SetGauge inserts or updates a gauge metric value v for the key k.
 func (s *MemStorage) SetGauge(k string, v monitor.Gauge) monitor.MetricRepo {
-	s.dataGauge[k] = v
+	s.DataGauge[k] = v
+
+	if s.syncMode {
+		s.WriteToFile()
+	}
+
 	return s
 }
 
 // AddCounter add a counter metric value v for the key k.
 func (s *MemStorage) AddCounter(k string, v monitor.Counter) monitor.MetricRepo {
-	s.dataCounter[k] += v
+	s.DataCounter[k] += v
+
+	if s.syncMode {
+		s.WriteToFile()
+	}
+
 	return s
 }
 
 // GetGauge retrieves the gauge value for the key k.
 func (s *MemStorage) GetGauge(k string) (v monitor.Gauge, ok bool) {
-	v, ok = s.dataGauge[k]
+	v, ok = s.DataGauge[k]
 	return
 }
 
 // GetCounter retrieves the counter value for the key k.
 func (s *MemStorage) GetCounter(k string) (v monitor.Counter, ok bool) {
-	v, ok = s.dataCounter[k]
+	v, ok = s.DataCounter[k]
 	return
 }
 
 // StringGauge produces a JSON representation of gauge metrics kept in the
 // storage
 func (s *MemStorage) StringGauge() string {
-	out, _ := json.Marshal(s.dataGauge)
+	out, _ := json.Marshal(s.DataGauge)
 	return string(out)
 }
 
 // StringCounter produces a JSON representation of counter metrics kept in the
 // storage
 func (s *MemStorage) StringCounter() string {
-	out, _ := json.Marshal(s.dataCounter)
+	out, _ := json.Marshal(s.DataCounter)
 	return string(out)
 }
 
 // StringCounter exposes the substorage with gauge metrics
 func (s *MemStorage) GetAllGauge() map[string]monitor.Gauge {
-	return s.dataGauge
+	return s.DataGauge
 }
 
 // StringCounter exposes the substorage with counter metrics
 func (s *MemStorage) GetAllCounter() map[string]monitor.Counter {
-	return s.dataCounter
+	return s.DataCounter
+}
+
+// // Marshal returns the JSON encoding of MemStorage.
+// func (s MemStorage) MarshalJSON() ([]byte, error) {
+// 	return json.Marshal(s)
+// }
+
+// // Unmarshal parses the JSON-encoded data and stores the result
+// // in MemStorage.
+// func (s *MemStorage) UnmarshalJSON(data []byte) error {
+// 	return json.Unmarshal(data, s)
+// }
+
+func (s *MemStorage) Close() error {
+	return s.file.Close()
+}
+
+func (s *MemStorage) WriteToFile() error {
+	s.file.Truncate(0)
+	enc := json.NewEncoder(s.file)
+	return enc.Encode(s)
 }
