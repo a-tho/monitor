@@ -198,11 +198,6 @@ func (s *server) Value(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) All(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get(contentType) != typeTextHTML {
-		http.NotFound(w, r)
-		return
-	}
-
 	tmpl, err := template.New("metrics").Parse(metricsTemplate)
 	if err != nil {
 		http.Error(w, errMetricHTML, http.StatusInternalServerError)
