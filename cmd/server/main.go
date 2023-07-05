@@ -41,7 +41,7 @@ func run() error {
 	}
 	log := cfg.initLogger()
 
-	cfg.metrics = storage.New(cfg.StoreInterval, cfg.FileStoragePath, cfg.Restore)
+	cfg.metrics = storage.New(cfg.FileStoragePath, cfg.StoreInterval == 0, cfg.Restore)
 	defer cfg.metrics.Close()
 
 	mux := server.NewServer(cfg.metrics, log)
@@ -49,7 +49,7 @@ func run() error {
 
 	// Write to the file every StoreInterval seconds
 	var ticker <-chan time.Time
-	if cfg.StoreInterval != 0 {
+	if cfg.StoreInterval > 0 {
 		t := time.NewTicker(cfg.StoreInterval)
 		defer t.Stop()
 		ticker = t.C

@@ -4,7 +4,6 @@ package storage
 import (
 	"encoding/json"
 	"os"
-	"time"
 
 	monitor "github.com/a-tho/monitor/internal"
 )
@@ -14,14 +13,13 @@ type MemStorage struct {
 	DataGauge   map[string]monitor.Gauge
 	DataCounter map[string]monitor.Counter
 
-	storeInterval time.Duration
-	file          *os.File
+	file *os.File
 	// Whether recording is synchronuous
 	syncMode bool
 }
 
 // New returns an initialized storage.
-func New(storeInterval time.Duration, fileStoragePath string, restore bool) *MemStorage {
+func New(fileStoragePath string, syncMode bool, restore bool) *MemStorage {
 	storage := MemStorage{
 		DataGauge:   make(map[string]monitor.Gauge),
 		DataCounter: make(map[string]monitor.Counter),
@@ -41,12 +39,8 @@ func New(storeInterval time.Duration, fileStoragePath string, restore bool) *Mem
 			}
 		}
 
-		storage.storeInterval = storeInterval
 		storage.file = file
-
-		if storeInterval == 0 {
-			storage.syncMode = true
-		}
+		storage.syncMode = syncMode
 	}
 
 	return &storage

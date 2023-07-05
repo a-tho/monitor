@@ -36,7 +36,7 @@ func TestStorageSetGauge(t *testing.T) {
 		},
 	}
 
-	s := New(0, "", false)
+	s := New("", false, false)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -75,7 +75,7 @@ func TestStorageAddCounter(t *testing.T) {
 		},
 	}
 
-	s := New(0, "", false)
+	s := New("", false, false)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
