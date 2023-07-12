@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/caarlos0/env"
@@ -41,7 +42,7 @@ func run() error {
 	}
 	log := cfg.initLogger()
 
-	cfg.metrics = storage.New(cfg.FileStoragePath, cfg.StoreInterval == 0, cfg.Restore)
+	cfg.metrics = storage.New(cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore)
 	defer cfg.metrics.Close()
 
 	mux := server.NewServer(cfg.metrics, log)
@@ -51,26 +52,13 @@ func run() error {
 		}
 	}()
 
-	// Write to the file every StoreInterval seconds
-	var ticker <-chan time.Time
-	if cfg.StoreInterval > 0 {
-		t := time.NewTicker(time.Duration(cfg.StoreInterval) * time.Second)
-		defer t.Stop()
-		ticker = t.C
-	}
-
-	// and close the file when SIGINT is passed
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
+	signal.Notify(quit, syscall.SIGINT)
+	signal.Notify(quit, syscall.SIGQUIT)
 
-	for {
-		select {
-		case <-ticker:
-			cfg.metrics.WriteToFile()
-		case <-quit:
-			return cfg.metrics.WriteToFile()
-		}
-	}
+	<-quit
+
+	return nil
 }
 
 func (c *Config) parseConfig() error {

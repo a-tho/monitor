@@ -1,5 +1,9 @@
 package monitor
 
+import (
+	"io"
+)
+
 type Gauge float64
 
 type Counter int64
@@ -17,17 +21,13 @@ type MetricRepo interface {
 	SetGauge(k string, v Gauge) MetricRepo
 	GetGauge(k string) (v Gauge, ok bool)
 	StringGauge() string
-	GetAllGauge() map[string]Gauge
+	WriteAllGauge(wr io.Writer) error
 
 	AddCounter(k string, v Counter) MetricRepo
 	GetCounter(k string) (v Counter, ok bool)
 	StringCounter() string
-	GetAllCounter() map[string]Counter
-	// HTML() (*bytes.Buffer, error)
+	WriteAllCounter(wr io.Writer) error
 
-	// MarshalJSON() ([]byte, error)
-	// UnmarshalJSON(data []byte) error
-	WriteToFile() error
 	Close() error
 }
 

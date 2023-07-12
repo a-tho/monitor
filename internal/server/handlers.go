@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"html/template"
 	"net/http"
 	"strconv"
 
@@ -198,20 +197,14 @@ func (s *server) Value(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) All(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.New("metrics").Parse(metricsTemplate)
-	if err != nil {
-		http.Error(w, errMetricHTML, http.StatusInternalServerError)
-		return
-	}
-
 	var gaugeBuf bytes.Buffer
-	if err = tmpl.Execute(&gaugeBuf, s.metrics.GetAllGauge()); err != nil {
+	if err := s.metrics.WriteAllGauge(&gaugeBuf); err != nil {
 		http.Error(w, errMetricHTML, http.StatusInternalServerError)
 		return
 	}
 
 	var counterBuf bytes.Buffer
-	if err = tmpl.Execute(&counterBuf, s.metrics.GetAllCounter()); err != nil {
+	if err := s.metrics.WriteAllCounter(&counterBuf); err != nil {
 		http.Error(w, errMetricHTML, http.StatusInternalServerError)
 		return
 	}
