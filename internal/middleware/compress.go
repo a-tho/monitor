@@ -1,10 +1,16 @@
-package server
+package middleware
 
 import (
 	"compress/gzip"
 	"io"
 	"net/http"
 	"strings"
+)
+
+const (
+	contentEncoding = "Content-Encoding"
+	encodingGzip    = "gzip"
+	acceptEncoding  = "Accept-Encoding"
 )
 
 type compResponseWriter struct {
@@ -55,7 +61,7 @@ func (r *decompReaderCloser) Close() error {
 	return r.dr.Close()
 }
 
-func (s server) WithCompressing(handler func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
+func WithCompressing(handler func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
 	wrapped := func(w http.ResponseWriter, r *http.Request) {
 		// Decompress request if necessary
 		encodings := r.Header.Values(contentEncoding)

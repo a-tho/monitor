@@ -10,6 +10,7 @@ import (
 
 	"github.com/caarlos0/env"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	monitor "github.com/a-tho/monitor/internal"
 	"github.com/a-tho/monitor/internal/server"
@@ -40,12 +41,12 @@ func run() error {
 	if err := cfg.parseConfig(); err != nil {
 		return err
 	}
-	log := cfg.initLogger()
+	cfg.initLogger()
 
 	cfg.metrics = storage.New(cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore)
 	defer cfg.metrics.Close()
 
-	mux := server.NewServer(cfg.metrics, log)
+	mux := server.NewServer(cfg.metrics)
 	go func() {
 		if err := http.ListenAndServe(cfg.SrvAddr, mux); err != nil {
 			panic(err)
@@ -76,12 +77,11 @@ func (c *Config) parseConfig() error {
 	return nil
 }
 
-func (c Config) initLogger() zerolog.Logger {
+func (c Config) initLogger() {
 	level := zerolog.ErrorLevel
 	if newLevel, err := zerolog.ParseLevel(c.LogLevel); err == nil {
 		level = newLevel
 	}
 	out := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.StampMicro}
-	logCtx := zerolog.New(out).Level(level).With().Timestamp().Stack().Caller()
-	return logCtx.Logger()
+	log.Logger = zerolog.New(out).Level(level).With().Timestamp().Stack().Caller().Logger()
 }

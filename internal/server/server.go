@@ -6,38 +6,35 @@ import (
 	"fmt"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog"
 
 	monitor "github.com/a-tho/monitor/internal"
+	mw "github.com/a-tho/monitor/internal/middleware"
 )
 
 type server struct {
 	metrics monitor.MetricRepo
-
-	log zerolog.Logger
 }
 
 // NewServer creates a new multiplexer with configured handlers
 func NewServer(
 	metrics monitor.MetricRepo,
-	log zerolog.Logger,
 ) *chi.Mux {
-	srv := server{metrics: metrics, log: log}
+	srv := server{metrics: metrics}
 	mux := chi.NewRouter()
 
-	mux.Get("/", srv.WithLogging(srv.WithCompressing(srv.All)))
+	mux.Get("/", mw.WithLogging(mw.WithCompressing(srv.All)))
 
 	path := fmt.Sprintf("/%s/{%s}/{%s}/{%s}", UpdPath, TypePath, NamePath, ValuePath)
-	mux.Post(path, srv.WithLogging(srv.UpdateLegacy))
+	mux.Post(path, mw.WithLogging(srv.UpdateLegacy))
 
 	path = fmt.Sprintf("/%s/", UpdPath)
-	mux.Post(path, srv.WithLogging(srv.WithCompressing(srv.Update)))
+	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Update)))
 
 	path = fmt.Sprintf("/%s/{%s}/{%s}", ValuePath, TypePath, NamePath)
-	mux.Get(path, srv.WithLogging(srv.ValueLegacy))
+	mux.Get(path, mw.WithLogging(srv.ValueLegacy))
 
 	path = fmt.Sprintf("/%s/", ValuePath)
-	mux.Post(path, srv.WithLogging(srv.WithCompressing(srv.Value)))
+	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Value)))
 
 	return mux
 }

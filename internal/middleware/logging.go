@@ -1,8 +1,10 @@
-package server
+package middleware
 
 import (
 	"net/http"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type (
@@ -28,7 +30,7 @@ func (w *logResponseWriter) WriteHeader(code int) {
 	w.data.code = code
 }
 
-func (s server) WithLogging(handler func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
+func WithLogging(handler func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
 	wrapped := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
@@ -36,16 +38,16 @@ func (s server) WithLogging(handler func(w http.ResponseWriter, r *http.Request)
 
 		lw := logResponseWriter{ResponseWriter: w, data: &respData}
 
-		s.log.Info().Str("uri", r.RequestURI).Msg("")
-		s.log.Info().Str("method", r.Method).Msg("")
+		log.Info().Str("uri", r.RequestURI).Msg("")
+		log.Info().Str("method", r.Method).Msg("")
 
 		handler(&lw, r)
 
 		duration := time.Since(start)
 
-		s.log.Info().Dur("duration", duration).Msg("")
-		s.log.Info().Int("code", respData.code).Msg("")
-		s.log.Info().Int("size", respData.size).Msg("")
+		log.Info().Dur("duration", duration).Msg("")
+		log.Info().Int("code", respData.code).Msg("")
+		log.Info().Int("size", respData.size).Msg("")
 	}
 	return wrapped
 }

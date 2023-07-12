@@ -4,10 +4,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -135,8 +133,7 @@ func TestServerUpdHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			metrics := storage.New("", 5, false)
-			nopLogger := zerolog.New(os.Stdout).Level(zerolog.Disabled)
-			srv := httptest.NewServer(NewServer(metrics, nopLogger))
+			srv := httptest.NewServer(NewServer(metrics))
 			defer srv.Close()
 
 			resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil)
@@ -200,8 +197,7 @@ func TestGetValHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			nopLogger := zerolog.New(os.Stdout).Level(zerolog.Disabled)
-			srv := httptest.NewServer(NewServer(tt.state.metrics, nopLogger))
+			srv := httptest.NewServer(NewServer(tt.state.metrics))
 			defer srv.Close()
 
 			resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil)
