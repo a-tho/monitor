@@ -132,7 +132,7 @@ func TestServerUpdHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metrics := storage.New()
+			metrics := storage.New("", 5, false)
 			srv := httptest.NewServer(NewServer(metrics))
 			defer srv.Close()
 
@@ -175,7 +175,7 @@ func TestGetValHandler(t *testing.T) {
 				contentType: textPlain,
 			},
 			state: state{
-				metrics: storage.New().SetGauge("Peach", monitor.Gauge(4.0)),
+				metrics: storage.New("", 5, false).SetGauge("Peach", monitor.Gauge(4.0)),
 			},
 		},
 		{
@@ -190,7 +190,7 @@ func TestGetValHandler(t *testing.T) {
 				contentType: textPlain,
 			},
 			state: state{
-				metrics: storage.New().SetGauge("Apple", monitor.Gauge(20.0)),
+				metrics: storage.New("", 5, false).SetGauge("Apple", monitor.Gauge(20.0)),
 			},
 		},
 	}

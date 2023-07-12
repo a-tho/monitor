@@ -1,8 +1,19 @@
 package monitor
 
+import (
+	"io"
+)
+
 type Gauge float64
 
 type Counter int64
+
+type Metrics struct {
+	ID    string   `json:"id"`              // metric name
+	MType string   `json:"type"`            // parameter, taking a value of gauge or counter
+	Delta *int64   `json:"delta,omitempty"` // metric value in case of a counter
+	Value *float64 `json:"value,omitempty"` // metric value in case of a gauge
+}
 
 // A MetricRepo is used for a single metric type (e.g. gauge or counter) and
 // stores a value for each metric name.
@@ -10,22 +21,17 @@ type MetricRepo interface {
 	SetGauge(k string, v Gauge) MetricRepo
 	GetGauge(k string) (v Gauge, ok bool)
 	StringGauge() string
-	GetAllGauge() map[string]Gauge
+	WriteAllGauge(wr io.Writer) error
 
 	AddCounter(k string, v Counter) MetricRepo
 	GetCounter(k string) (v Counter, ok bool)
 	StringCounter() string
-	GetAllCounter() map[string]Counter
-	// HTML() (*bytes.Buffer, error)
+	WriteAllCounter(wr io.Writer) error
+
+	Close() error
 }
 
 // An Observer is used to collect and transmit metrics.
 type Observer interface {
 	Observe() error
-}
-
-// A MetricInstance holds a set of metrics collected roughly at the same moment
-// in time.
-type MetricInstance struct {
-	Gauges map[string]Gauge
 }

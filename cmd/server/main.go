@@ -1,23 +1,15 @@
 package main
 
 import (
-	"flag"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/caarlos0/env"
-
-	monitor "github.com/a-tho/monitor/internal"
+	"github.com/a-tho/monitor/internal/config"
 	"github.com/a-tho/monitor/internal/server"
 	"github.com/a-tho/monitor/internal/storage"
 )
-
-type Config struct {
-	// Flags
-	SrvAddr string `env:"ADDRESS"`
-
-	// Storage
-	metrics monitor.MetricRepo
-}
 
 func main() {
 	if err := run(); err != nil {
@@ -26,24 +18,27 @@ func main() {
 }
 
 func run() error {
-	var cfg Config
-	if err := parseConfig(&cfg); err != nil {
+	var cfg config.Config
+	if err := cfg.ParseConfig(); err != nil {
 		return err
 	}
+	cfg.InitLogger()
 
-	cfg.metrics = storage.New()
+	cfg.Metrics = storage.New(cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore)
+	defer cfg.Metrics.Close()
 
-	mux := server.NewServer(cfg.metrics)
-	return http.ListenAndServe(cfg.SrvAddr, mux)
-}
+	mux := server.NewServer(cfg.Metrics)
+	go func() {
+		if err := http.ListenAndServe(cfg.SrvAddr, mux); err != nil {
+			panic(err)
+		}
+	}()
 
-func parseConfig(cfg *Config) error {
-	flag.StringVar(&cfg.SrvAddr, "a", "localhost:8080", "address and port to run server")
-	flag.Parse()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT)
+	signal.Notify(quit, syscall.SIGQUIT)
 
-	if err := env.Parse(cfg); err != nil {
-		return err
-	}
+	<-quit
 
 	return nil
 }

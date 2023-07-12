@@ -2,7 +2,7 @@ package server
 
 import (
 	"bytes"
-	"html/template"
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -14,8 +14,11 @@ import (
 const (
 	errPostMethod  = "use POST for saving metrics"
 	errMetricPath  = "invalid metric path"
+	errMetricType  = "invalid metric type"
+	errMetricName  = "invalid metric name"
 	errMetricValue = "invalid metric value"
 	errMetricHTML  = "failed to generate HTML page with metrics"
+	errDecompress  = "failed to decompress request body"
 
 	// HTML
 	metricsTemplate = `
@@ -34,10 +37,17 @@ const (
 	pageFooter    = `
 	</body>
 	</html>`
+
+	contentType         = "Content-Type"
+	contentEncoding     = "Content-Encoding"
+	acceptEncoding      = "Accept-Encoding"
+	typeApplicationJSON = "application/json"
+	typeTextHTML        = "text/html"
+	encodingGzip        = "gzip"
 )
 
-// UpdHandler handles requests for adding metrics
-func (s *server) UpdHandler(w http.ResponseWriter, r *http.Request) {
+// UpdateLegacy handles requests for adding metrics
+func (s *server) UpdateLegacy(w http.ResponseWriter, r *http.Request) {
 	typ := chi.URLParam(r, TypePath)
 	name := chi.URLParam(r, NamePath)
 	value := chi.URLParam(r, ValuePath)
@@ -66,7 +76,56 @@ func (s *server) UpdHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *server) GetValHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) Update(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get(contentType) != typeApplicationJSON {
+		http.NotFound(w, r)
+		return
+	}
+
+	var input monitor.Metrics
+	dec := json.NewDecoder(r.Body)
+	err := dec.Decode(&input)
+	if err != nil {
+		http.Error(w, errMetricValue, http.StatusBadRequest)
+		return
+	}
+
+	var respValue float64
+	switch input.MType {
+	case GaugePath:
+
+		if input.Value == nil {
+			http.Error(w, errMetricValue, http.StatusBadRequest)
+			return
+		}
+		s.metrics.SetGauge(input.ID, monitor.Gauge(*input.Value))
+
+		respValue = *input.Value
+
+	case CounterPath:
+
+		if input.Delta == nil {
+			http.Error(w, errMetricValue, http.StatusBadRequest)
+			return
+		}
+		s.metrics.AddCounter(input.ID, monitor.Counter(*input.Delta))
+
+		input.Delta = nil
+		counter, _ := s.metrics.GetCounter(input.ID)
+		respValue = float64(counter)
+
+	default:
+		http.Error(w, errMetricType, http.StatusBadRequest)
+		return
+	}
+
+	input.Value = &respValue
+	w.Header().Add(contentType, typeApplicationJSON)
+	enc := json.NewEncoder(w)
+	enc.Encode(input)
+}
+
+func (s *server) ValueLegacy(w http.ResponseWriter, r *http.Request) {
 	typ := chi.URLParam(r, "type")
 	name := chi.URLParam(r, "name")
 
@@ -92,25 +151,65 @@ func (s *server) GetValHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.New("metrics").Parse(metricsTemplate)
-	if err != nil {
-		http.Error(w, errMetricHTML, http.StatusInternalServerError)
+func (s *server) Value(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get(contentType) != typeApplicationJSON {
+		http.NotFound(w, r)
 		return
 	}
 
+	var input monitor.Metrics
+	dec := json.NewDecoder(r.Body)
+	dec.Decode(&input)
+
+	if input.ID == "" {
+		http.Error(w, errMetricName, http.StatusBadRequest)
+		return
+	}
+	switch input.MType {
+	case GaugePath:
+
+		val, ok := s.metrics.GetGauge(input.ID)
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		valFloat := float64(val)
+		input.Value = &valFloat
+
+	case CounterPath:
+
+		count, ok := s.metrics.GetCounter(input.ID)
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		countInt := int64(count)
+		input.Delta = &countInt
+
+	default:
+		http.Error(w, errMetricType, http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Add(contentType, typeApplicationJSON)
+	enc := json.NewEncoder(w)
+	enc.Encode(input)
+}
+
+func (s *server) All(w http.ResponseWriter, r *http.Request) {
 	var gaugeBuf bytes.Buffer
-	if err = tmpl.Execute(&gaugeBuf, s.metrics.GetAllGauge()); err != nil {
+	if err := s.metrics.WriteAllGauge(&gaugeBuf); err != nil {
 		http.Error(w, errMetricHTML, http.StatusInternalServerError)
 		return
 	}
 
 	var counterBuf bytes.Buffer
-	if err = tmpl.Execute(&counterBuf, s.metrics.GetAllCounter()); err != nil {
+	if err := s.metrics.WriteAllCounter(&counterBuf); err != nil {
 		http.Error(w, errMetricHTML, http.StatusInternalServerError)
 		return
 	}
 
+	w.Header().Add(contentType, typeTextHTML)
 	w.Write([]byte(pageHead))
 	w.Write([]byte(gaugeHeader))
 	w.Write(gaugeBuf.Bytes())

@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	monitor "github.com/a-tho/monitor/internal"
+	mw "github.com/a-tho/monitor/internal/middleware"
 )
 
 type server struct {
@@ -21,13 +22,19 @@ func NewServer(
 	srv := server{metrics: metrics}
 	mux := chi.NewRouter()
 
-	mux.Get("/", srv.GetAllHandler)
+	mux.Get("/", mw.WithLogging(mw.WithCompressing(srv.All)))
 
 	path := fmt.Sprintf("/%s/{%s}/{%s}/{%s}", UpdPath, TypePath, NamePath, ValuePath)
-	mux.Post(path, srv.UpdHandler)
+	mux.Post(path, mw.WithLogging(srv.UpdateLegacy))
+
+	path = fmt.Sprintf("/%s/", UpdPath)
+	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Update)))
 
 	path = fmt.Sprintf("/%s/{%s}/{%s}", ValuePath, TypePath, NamePath)
-	mux.Get(path, srv.GetValHandler)
+	mux.Get(path, mw.WithLogging(srv.ValueLegacy))
+
+	path = fmt.Sprintf("/%s/", ValuePath)
+	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Value)))
 
 	return mux
 }

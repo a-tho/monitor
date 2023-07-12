@@ -2,34 +2,43 @@
 package telemetry
 
 import (
-	"fmt"
 	"math/rand"
 	"runtime"
 	"time"
 
-	"github.com/go-resty/resty/v2"
-
 	monitor "github.com/a-tho/monitor/internal"
-	"github.com/a-tho/monitor/internal/server"
+)
+
+const (
+	contentEncoding     = "Content-Encoding"
+	contentType         = "Content-Type"
+	encodingGzip        = "gzip"
+	typeApplicationJSON = "application/json"
 )
 
 type Observer struct {
-	srvAddr        string
+	SrvAddr        string
 	pollInterval   time.Duration
 	reportStep     int
 	reportInterval time.Duration
 
 	// local storage for the polled metrics that have not been reported yet
-	polled []monitor.MetricInstance
+	polled []MetricInstance
+}
+
+// A MetricInstance holds a set of metrics collected roughly at the same moment
+// in time.
+type MetricInstance struct {
+	Gauges map[string]monitor.Gauge
 }
 
 func NewObserver(srvAddr string, pollInterval, reportStep int) *Observer {
 	obs := Observer{
-		srvAddr:        srvAddr,
+		SrvAddr:        srvAddr,
 		pollInterval:   time.Duration(pollInterval) * time.Second,
 		reportStep:     reportStep,
 		reportInterval: time.Duration(pollInterval*reportStep) * time.Second,
-		polled:         make([]monitor.MetricInstance, reportStep),
+		polled:         make([]MetricInstance, reportStep),
 	}
 	for i := range obs.polled {
 		obs.polled[i].Gauges = make(map[string]monitor.Gauge)
@@ -44,9 +53,7 @@ func (o *Observer) Observe() error {
 
 		pollCount++
 		if pollCount%o.reportStep == 0 {
-			if err := o.report(); err != nil {
-				return err
-			}
+			_ = o.report() // don't exit if failed to send metrics
 		}
 
 		time.Sleep(o.pollInterval)
@@ -89,33 +96,4 @@ func (o *Observer) poll(pollCount int) {
 
 	randomValue := rand.New(rand.NewSource(time.Now().Unix())).Float64()
 	o.polled[countSinceReport].Gauges["RandomValue"] = monitor.Gauge(randomValue)
-}
-
-func (o *Observer) report() error {
-	for _, instance := range o.polled {
-		// Gauge metrics
-		for key, value := range instance.Gauges {
-			url := fmt.Sprintf("http://%s/%s/%s/%s/%f",
-				o.srvAddr, server.UpdPath, server.GaugePath, key, float64(value))
-			if err := send(url); err != nil {
-				return err
-			}
-		}
-	}
-	// Counter metric
-	url := fmt.Sprintf("http://%s/%s/%s/%s/%d",
-		o.srvAddr, server.UpdPath, server.CounterPath, "PollCount", o.reportStep)
-	if err := send(url); err != nil {
-		return err
-	}
-	return nil
-}
-
-func send(url string) error {
-	client := resty.New()
-	_, err := client.R().Post(url)
-	if err != nil {
-		return err
-	}
-	return nil
 }
