@@ -36,6 +36,9 @@ func NewServer(
 	path = fmt.Sprintf("/%s/", ValuePath)
 	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Value)))
 
+	path = "/ping"
+	mux.Get(path, mw.WithLogging((mw.WithCompressing(srv.Ping))))
+
 	return mux
 }
 

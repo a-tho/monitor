@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -216,4 +217,11 @@ func (s *server) All(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(counterHeader))
 	w.Write(counterBuf.Bytes())
 	w.Write([]byte(pageFooter))
+}
+
+func (s *server) Ping(w http.ResponseWriter, r *http.Request) {
+	if err := s.metrics.PingContext(context.TODO()); err != nil {
+		http.Error(w, "ping unsuccessful", http.StatusInternalServerError)
+	}
+	w.Write(nil)
 }

@@ -132,21 +132,23 @@ func TestServerUpdHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metrics := storage.New("", 5, false)
-			srv := httptest.NewServer(NewServer(metrics))
-			defer srv.Close()
+			metrics, err := storage.New("temporary_stub", "", 5, false)
+			if assert.NoError(t, err) {
+				srv := httptest.NewServer(NewServer(metrics))
+				defer srv.Close()
 
-			resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil)
-			defer resp.Body.Close()
+				resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil)
+				defer resp.Body.Close()
 
-			// Validate response
-			assert.Equal(t, tt.want.code, resp.StatusCode)
-			assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-Type"))
-			assert.Equal(t, tt.want.respBody, string(respBody))
+				// Validate response
+				assert.Equal(t, tt.want.code, resp.StatusCode)
+				assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-Type"))
+				assert.Equal(t, tt.want.respBody, string(respBody))
 
-			// Validate server storage
-			assert.JSONEq(t, tt.want.gauge, metrics.StringGauge())
-			assert.JSONEq(t, tt.want.counter, metrics.StringCounter())
+				// Validate server storage
+				assert.JSONEq(t, tt.want.gauge, metrics.StringGauge())
+				assert.JSONEq(t, tt.want.counter, metrics.StringCounter())
+			}
 		})
 	}
 }
