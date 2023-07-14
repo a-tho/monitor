@@ -22,7 +22,8 @@ type Config struct {
 	Restore         bool   `env:"RESTORE"`
 
 	// Storage
-	Metrics monitor.MetricRepo
+	Metrics     monitor.MetricRepo
+	DatabaseDSN string `env:"DATABASE_DSN"`
 }
 
 func (c *Config) ParseConfig() error {
@@ -31,6 +32,7 @@ func (c *Config) ParseConfig() error {
 	flag.IntVar(&c.StoreInterval, "i", 300, "interval in seconds after which readings saved to disk")
 	flag.StringVar(&c.FileStoragePath, "f", "/tmp/metrics-db.json", "file where to save current values")
 	flag.BoolVar(&c.Restore, "r", true, "whether or not to load previously saved values on server start")
+	flag.StringVar(&c.DatabaseDSN, "d", "postgres://postgres:123456@localhost:5432/database", "database dsn")
 	flag.Parse()
 
 	if err := env.Parse(c); err != nil {

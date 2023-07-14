@@ -2,6 +2,8 @@
 package storage
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"html/template"
 	"io"
@@ -11,11 +13,14 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
+
 	monitor "github.com/a-tho/monitor/internal"
 )
 
 // MemStorage represents the storage.
 type MemStorage struct {
+	db          *sql.DB
 	DataGauge   map[string]monitor.Gauge
 	DataCounter map[string]monitor.Counter
 
@@ -26,9 +31,14 @@ type MemStorage struct {
 }
 
 // New returns an initialized storage.
-func New(fileStoragePath string, storeInterval int, restore bool) *MemStorage {
+func New(dsn string, fileStoragePath string, storeInterval int, restore bool) (*MemStorage, error) {
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return nil, err
+	}
 
 	storage := MemStorage{
+		db:          db,
 		DataGauge:   make(map[string]monitor.Gauge),
 		DataCounter: make(map[string]monitor.Counter),
 	}
@@ -36,7 +46,7 @@ func New(fileStoragePath string, storeInterval int, restore bool) *MemStorage {
 	if fileStoragePath != "" {
 		file, err := os.OpenFile(fileStoragePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
 		if err != nil {
-			return &storage
+			return &storage, nil
 		}
 
 		if restore {
@@ -57,7 +67,7 @@ func New(fileStoragePath string, storeInterval int, restore bool) *MemStorage {
 		}
 	}
 
-	return &storage
+	return &storage, nil
 }
 
 func (s *MemStorage) backup(storeInterval int) {
@@ -180,8 +190,14 @@ func (s *MemStorage) WriteAllCounter(wr io.Writer) error {
 	return nil
 }
 
+func (s *MemStorage) PingContext(ctx context.Context) error {
+	return s.db.PingContext(ctx)
+}
+
 func (s *MemStorage) Close() error {
 	s.writeToFile()
+
+	_ = s.db.Close() // ignore error for now
 
 	if s.file == nil {
 		return nil

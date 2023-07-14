@@ -18,13 +18,19 @@ func main() {
 }
 
 func run() error {
-	var cfg config.Config
+	var (
+		cfg config.Config
+		err error
+	)
 	if err := cfg.ParseConfig(); err != nil {
 		return err
 	}
 	cfg.InitLogger()
 
-	cfg.Metrics = storage.New(cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore)
+	cfg.Metrics, err = storage.New(cfg.DatabaseDSN, cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore)
+	if err != nil {
+		return err
+	}
 	defer cfg.Metrics.Close()
 
 	mux := server.NewServer(cfg.Metrics)

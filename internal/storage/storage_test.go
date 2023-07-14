@@ -36,15 +36,17 @@ func TestStorageSetGauge(t *testing.T) {
 		},
 	}
 
-	s := New("", 5, false)
+	s, err := New("postgres://postgres:123456@localhost:5432/database", "", 5, false)
+	if assert.NoError(t, err) {
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			s.SetGauge(tt.args.k, tt.args.v)
-			assert.JSONEq(t, tt.want, s.StringGauge())
-		})
+				s.SetGauge(tt.args.k, tt.args.v)
+				assert.JSONEq(t, tt.want, s.StringGauge())
+			})
+		}
 	}
+
 }
 
 func TestStorageAddCounter(t *testing.T) {
@@ -75,13 +77,15 @@ func TestStorageAddCounter(t *testing.T) {
 		},
 	}
 
-	s := New("", 5, false)
+	s, err := New("postgres://postgres:123456@localhost:5432/database", "", 5, false)
+	if assert.NoError(t, err) {
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			s.AddCounter(tt.args.k, tt.args.v)
-			assert.JSONEq(t, tt.want, s.StringCounter())
-		})
+				s.AddCounter(tt.args.k, tt.args.v)
+				assert.JSONEq(t, tt.want, s.StringCounter())
+			})
+		}
 	}
+
 }

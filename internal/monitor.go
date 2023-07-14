@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"context"
 	"io"
 )
 
@@ -28,6 +29,7 @@ type MetricRepo interface {
 	StringCounter() string
 	WriteAllCounter(wr io.Writer) error
 
+	PingContext(ctx context.Context) error
 	Close() error
 }
 
