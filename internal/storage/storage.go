@@ -321,10 +321,10 @@ func (s *MemStorage) WriteAllGauge(ctx context.Context, wr io.Writer) error {
 
 	if s.db != nil {
 		var (
-			dataGauge map[string]monitor.Gauge
-			key       string
-			value     monitor.Gauge
+			key   string
+			value monitor.Gauge
 		)
+		dataGauge := make(map[string]monitor.Gauge)
 		rows, err := s.stmtAllGauge.QueryContext(ctx)
 		if err != nil {
 			return err
@@ -357,10 +357,10 @@ func (s *MemStorage) WriteAllCounter(ctx context.Context, wr io.Writer) error {
 
 	if s.db != nil {
 		var (
-			dataGauge map[string]monitor.Gauge
-			key       string
-			value     monitor.Gauge
+			key   string
+			value monitor.Gauge
 		)
+		dataGauge := make(map[string]monitor.Gauge)
 		rows, err := s.stmtAllCounter.QueryContext(ctx)
 		if err != nil {
 			return err
@@ -381,7 +381,7 @@ func (s *MemStorage) WriteAllCounter(ctx context.Context, wr io.Writer) error {
 	err = tmpl.Execute(wr, s.DataCounter)
 	s.m.Unlock()
 
-	return nil
+	return err
 }
 
 func (s *MemStorage) PingContext(ctx context.Context) error {
