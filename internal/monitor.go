@@ -19,15 +19,15 @@ type Metrics struct {
 // A MetricRepo is used for a single metric type (e.g. gauge or counter) and
 // stores a value for each metric name.
 type MetricRepo interface {
-	SetGauge(k string, v Gauge) MetricRepo
-	GetGauge(k string) (v Gauge, ok bool)
-	StringGauge() string
-	WriteAllGauge(wr io.Writer) error
+	SetGauge(ctx context.Context, k string, v Gauge) (MetricRepo, error)
+	GetGauge(ctx context.Context, k string) (v Gauge, ok bool)
+	StringGauge(ctx context.Context) (string, error)
+	WriteAllGauge(ctx context.Context, wr io.Writer) error
 
-	AddCounter(k string, v Counter) MetricRepo
-	GetCounter(k string) (v Counter, ok bool)
-	StringCounter() string
-	WriteAllCounter(wr io.Writer) error
+	AddCounter(ctx context.Context, k string, v Counter) (MetricRepo, error)
+	GetCounter(ctx context.Context, k string) (v Counter, ok bool)
+	StringCounter(ctx context.Context) (string, error)
+	WriteAllCounter(ctx context.Context, wr io.Writer) error
 
 	PingContext(ctx context.Context) error
 	Close() error

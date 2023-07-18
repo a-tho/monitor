@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -41,8 +42,10 @@ func TestStorageSetGauge(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 
-				s.SetGauge(tt.args.k, tt.args.v)
-				assert.JSONEq(t, tt.want, s.StringGauge())
+				s.SetGauge(context.TODO(), tt.args.k, tt.args.v)
+				gaugeJSON, err := s.StringGauge(context.TODO())
+				assert.NoError(t, err)
+				assert.JSONEq(t, tt.want, gaugeJSON)
 			})
 		}
 	}
@@ -82,8 +85,10 @@ func TestStorageAddCounter(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 
-				s.AddCounter(tt.args.k, tt.args.v)
-				assert.JSONEq(t, tt.want, s.StringCounter())
+				s.AddCounter(context.TODO(), tt.args.k, tt.args.v)
+				counterJSON, err := s.StringCounter(context.TODO())
+				assert.NoError(t, err)
+				assert.JSONEq(t, tt.want, counterJSON)
 			})
 		}
 	}

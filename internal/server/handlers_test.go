@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -146,8 +147,12 @@ func TestServerUpdHandler(t *testing.T) {
 				assert.Equal(t, tt.want.respBody, string(respBody))
 
 				// Validate server storage
-				assert.JSONEq(t, tt.want.gauge, metrics.StringGauge())
-				assert.JSONEq(t, tt.want.counter, metrics.StringCounter())
+				gaugeJSON, err := metrics.StringGauge(context.TODO())
+				assert.NoError(t, err)
+				assert.JSONEq(t, tt.want.gauge, gaugeJSON)
+				counterJSON, err := metrics.StringCounter(context.TODO())
+				assert.NoError(t, err)
+				assert.JSONEq(t, tt.want.counter, counterJSON)
 			}
 		})
 	}

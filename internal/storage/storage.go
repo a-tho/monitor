@@ -3,7 +3,6 @@ package storage
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"html/template"
 	"io"
@@ -14,31 +13,145 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
 
 	monitor "github.com/a-tho/monitor/internal"
 )
 
 // MemStorage represents the storage.
 type MemStorage struct {
-	db          *sql.DB
+	// Database
+	db                *sqlx.DB
+	stmtSetGauge      *sqlx.Stmt
+	stmtAddCounter    *sqlx.Stmt
+	stmtGetGauge      *sqlx.Stmt
+	stmtGetCounter    *sqlx.Stmt
+	stmtStringGauge   *sqlx.Stmt
+	stmtStringCounter *sqlx.Stmt
+	stmtAllGauge      *sqlx.Stmt
+	stmtAllCounter    *sqlx.Stmt
+
+	// Memory
 	DataGauge   map[string]monitor.Gauge
 	DataCounter map[string]monitor.Counter
-
-	file *os.File
-	m    sync.Mutex
-	// Whether recording is synchronuous
-	syncMode bool
+	file        *os.File
+	m           sync.Mutex
+	syncMode    bool // Whether recording is synchronuous
 }
 
 // New returns an initialized storage.
 func New(dsn string, fileStoragePath string, storeInterval int, restore bool) (*MemStorage, error) {
-	db, err := sql.Open("pgx", dsn)
+	if dsn != "" {
+		// DB may be available
+		if storage, err := NewDBStorage(context.TODO(), dsn); err == nil {
+			return storage, nil
+		}
+		// DB not available, revert to memory storage
+	}
+
+	// No available database, store in memory
+	return NewMemStorage(fileStoragePath, storeInterval, restore)
+}
+
+func NewDBStorage(ctx context.Context, dsn string) (*MemStorage, error) {
+	db, err := sqlx.Open("pgx", dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = db.ExecContext(ctx, `
+	CREATE TABLE gauge (
+		"name" VARCHAR(50) PRIMARY KEY,
+		"value" NUMERIC
+	);`)
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	db.ExecContext(ctx, `
+	CREATE TABLE counter (
+		"name" VARCHAR(50) PRIMARY KEY,
+		"value" DOUBLE PRECISION
+	);`)
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	stmtSetGauge, err := db.Preparex(`
+	INSERT INTO gauge (name, value)
+	VALUES
+		($1, $2)
+	ON CONFLICT (name) DO UPDATE
+	SET value = EXCLUDED.value;`)
+	if err != nil {
+		return nil, err
+	}
+
+	stmtAddCounter, err := db.Preparex(`
+	INSERT INTO counter (name, value)
+	VALUES
+		($1, $2)
+	ON CONFLICT (name) DO UPDATE
+	SET value = counter.value + EXCLUDED.value;`)
+	if err != nil {
+		return nil, err
+	}
+
+	stmtGetGauge, err := db.Preparex(`
+	SELECT value FROM gauge WHERE name = $1`)
+	if err != nil {
+		return nil, err
+	}
+
+	stmtGetCounter, err := db.Preparex(`
+	SELECT value FROM counter WHERE name = $1`)
+	if err != nil {
+		return nil, err
+	}
+
+	// https://alphahydrae.com/2021/02/how-to-export-postgresql-data-to-a-json-file/
+	stmtStringGauge, err := db.Preparex(`
+	SELECT json_agg(row_to_json(gauge)) FROM gauge;`)
+	if err != nil {
+		return nil, err
+	}
+
+	stmtStringCounter, err := db.Preparex(`
+	SELECT json_agg(row_to_json(counter)) FROM counter;`)
+	if err != nil {
+		return nil, err
+	}
+
+	stmtAllGauge, err := db.Preparex(`
+	SELECT name, value FROM gauge`)
+	if err != nil {
+		return nil, err
+	}
+
+	stmtAllCounter, err := db.Preparex(`
+	SELECT name, value FROM counter`)
 	if err != nil {
 		return nil, err
 	}
 
 	storage := MemStorage{
-		db:          db,
+		db:                db,
+		stmtSetGauge:      stmtSetGauge,
+		stmtAddCounter:    stmtAddCounter,
+		stmtGetGauge:      stmtGetGauge,
+		stmtGetCounter:    stmtGetCounter,
+		stmtStringGauge:   stmtStringGauge,
+		stmtStringCounter: stmtStringCounter,
+		stmtAllGauge:      stmtAllGauge,
+		stmtAllCounter:    stmtAllCounter,
+	}
+	return &storage, nil
+}
+
+func NewMemStorage(fileStoragePath string, storeInterval int, restore bool) (*MemStorage, error) {
+	storage := MemStorage{
 		DataGauge:   make(map[string]monitor.Gauge),
 		DataCounter: make(map[string]monitor.Counter),
 	}
@@ -63,14 +176,14 @@ func New(dsn string, fileStoragePath string, storeInterval int, restore bool) (*
 		storage.syncMode = syncMode
 
 		if !syncMode {
-			go storage.backup(storeInterval)
+			go storage.memBackup(storeInterval)
 		}
 	}
 
 	return &storage, nil
 }
 
-func (s *MemStorage) backup(storeInterval int) {
+func (s *MemStorage) memBackup(storeInterval int) {
 	// Write to the file every storeInterval seconds
 	var ticker <-chan time.Time
 	if storeInterval > 0 {
@@ -95,7 +208,13 @@ func (s *MemStorage) backup(storeInterval int) {
 }
 
 // SetGauge inserts or updates a gauge metric value v for the key k.
-func (s *MemStorage) SetGauge(k string, v monitor.Gauge) monitor.MetricRepo {
+func (s *MemStorage) SetGauge(ctx context.Context, k string, v monitor.Gauge) (monitor.MetricRepo, error) {
+	if s.db != nil {
+		_, err := s.stmtSetGauge.ExecContext(ctx, k, v)
+		return s, err
+	}
+
+	// No DB, use memory
 	s.m.Lock()
 	s.DataGauge[k] = v
 	s.m.Unlock()
@@ -104,11 +223,16 @@ func (s *MemStorage) SetGauge(k string, v monitor.Gauge) monitor.MetricRepo {
 		s.writeToFile()
 	}
 
-	return s
+	return s, nil
 }
 
 // AddCounter adds a counter metric value v for the key k.
-func (s *MemStorage) AddCounter(k string, v monitor.Counter) monitor.MetricRepo {
+func (s *MemStorage) AddCounter(ctx context.Context, k string, v monitor.Counter) (monitor.MetricRepo, error) {
+	if s.db != nil {
+		_, err := s.stmtAddCounter.ExecContext(ctx, k, v)
+		return s, err
+	}
+
 	s.m.Lock()
 	s.DataCounter[k] += v
 	s.m.Unlock()
@@ -117,11 +241,19 @@ func (s *MemStorage) AddCounter(k string, v monitor.Counter) monitor.MetricRepo 
 		s.writeToFile()
 	}
 
-	return s
+	return s, nil
 }
 
 // GetGauge retrieves the gauge value for the key k.
-func (s *MemStorage) GetGauge(k string) (v monitor.Gauge, ok bool) {
+func (s *MemStorage) GetGauge(ctx context.Context, k string) (v monitor.Gauge, ok bool) {
+	if s.db != nil {
+		row := s.stmtGetGauge.QueryRow(k)
+		if err := row.Scan(&v); err != nil {
+			return v, false
+		}
+		return v, true
+	}
+
 	s.m.Lock()
 	v, ok = s.DataGauge[k]
 	s.m.Unlock()
@@ -130,7 +262,15 @@ func (s *MemStorage) GetGauge(k string) (v monitor.Gauge, ok bool) {
 }
 
 // GetCounter retrieves the counter value for the key k.
-func (s *MemStorage) GetCounter(k string) (v monitor.Counter, ok bool) {
+func (s *MemStorage) GetCounter(ctx context.Context, k string) (v monitor.Counter, ok bool) {
+	if s.db != nil {
+		row := s.stmtGetCounter.QueryRowContext(ctx, k)
+		if err := row.Scan(&v); err != nil {
+			return v, false
+		}
+		return v, true
+	}
+
 	s.m.Lock()
 	v, ok = s.DataCounter[k]
 	s.m.Unlock()
@@ -140,51 +280,105 @@ func (s *MemStorage) GetCounter(k string) (v monitor.Counter, ok bool) {
 
 // StringGauge produces a JSON representation of gauge metrics kept in the
 // storage
-func (s *MemStorage) StringGauge() string {
+func (s *MemStorage) StringGauge(ctx context.Context) (string, error) {
+	if s.db != nil {
+		row := s.stmtStringCounter.QueryRowContext(ctx)
+		var enc string
+		err := row.Scan(&enc)
+		return enc, err
+	}
+
 	s.m.Lock()
-	out, _ := json.Marshal(s.DataGauge)
+	out, err := json.Marshal(s.DataGauge)
 	s.m.Unlock()
 
-	return string(out)
+	return string(out), err
 }
 
 // StringCounter produces a JSON representation of counter metrics kept in the
 // storage
-func (s *MemStorage) StringCounter() string {
+func (s *MemStorage) StringCounter(ctx context.Context) (string, error) {
+	if s.db != nil {
+		row := s.stmtStringCounter.QueryRowContext(ctx)
+		var enc string
+		err := row.Scan(&enc)
+		return enc, err
+	}
+
 	s.m.Lock()
-	out, _ := json.Marshal(s.DataCounter)
+	out, err := json.Marshal(s.DataCounter)
 	s.m.Unlock()
 
-	return string(out)
+	return string(out), err
 }
 
 // WriteAllGauge writes gauge metrics as HTML into specified writer.
-func (s *MemStorage) WriteAllGauge(wr io.Writer) error {
+func (s *MemStorage) WriteAllGauge(ctx context.Context, wr io.Writer) error {
 	tmpl, err := template.New("metrics").Parse(metricsTemplate)
 	if err != nil {
 		return err
 	}
 
-	s.m.Lock()
-	if err = tmpl.Execute(wr, s.DataGauge); err != nil {
+	if s.db != nil {
+		var (
+			dataGauge map[string]monitor.Gauge
+			key       string
+			value     monitor.Gauge
+		)
+		rows, err := s.stmtAllGauge.QueryContext(ctx)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			if err = rows.Scan(&key, &value); err != nil {
+				return err
+			}
+			dataGauge[key] = value
+		}
+
+		err = tmpl.Execute(wr, dataGauge)
+
 		return err
 	}
+
+	s.m.Lock()
+	err = tmpl.Execute(wr, s.DataGauge)
 	s.m.Unlock()
 
-	return nil
+	return err
 }
 
 // WriteAllCounter writes counter metrics as HTML into specified writer.
-func (s *MemStorage) WriteAllCounter(wr io.Writer) error {
+func (s *MemStorage) WriteAllCounter(ctx context.Context, wr io.Writer) error {
 	tmpl, err := template.New("metrics").Parse(metricsTemplate)
 	if err != nil {
 		return err
 	}
 
-	s.m.Lock()
-	if err = tmpl.Execute(wr, s.DataCounter); err != nil {
+	if s.db != nil {
+		var (
+			dataGauge map[string]monitor.Gauge
+			key       string
+			value     monitor.Gauge
+		)
+		rows, err := s.stmtAllCounter.QueryContext(ctx)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			if err = rows.Scan(&key, &value); err != nil {
+				return err
+			}
+			dataGauge[key] = value
+		}
+
+		err = tmpl.Execute(wr, dataGauge)
+
 		return err
 	}
+
+	s.m.Lock()
+	err = tmpl.Execute(wr, s.DataCounter)
 	s.m.Unlock()
 
 	return nil
@@ -195,9 +389,17 @@ func (s *MemStorage) PingContext(ctx context.Context) error {
 }
 
 func (s *MemStorage) Close() error {
-	s.writeToFile()
+	if s.db != nil {
+		s.stmtSetGauge.Close()
+		s.stmtAddCounter.Close()
+		s.stmtGetGauge.Close()
+		s.stmtGetCounter.Close()
+		s.stmtStringGauge.Close()
+		s.stmtStringCounter.Close()
+		return s.db.Close()
+	}
 
-	_ = s.db.Close() // ignore error for now
+	s.writeToFile()
 
 	if s.file == nil {
 		return nil

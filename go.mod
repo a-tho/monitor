@@ -7,6 +7,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/jackc/pgx/v5 v5.4.2
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/rs/zerolog v1.29.1
 	github.com/stretchr/testify v1.8.4
 )
