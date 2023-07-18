@@ -65,7 +65,7 @@ func NewDBStorage(ctx context.Context, dsn string) (*MemStorage, error) {
 	_, err = db.ExecContext(ctx, `
 	CREATE TABLE IF NOT EXISTS gauge (
 		"name" VARCHAR(50) PRIMARY KEY,
-		"value" NUMERIC
+		"value" DOUBLE PRECISION
 	);`)
 	if err != nil {
 		db.Close()
@@ -75,7 +75,7 @@ func NewDBStorage(ctx context.Context, dsn string) (*MemStorage, error) {
 	_, err = db.ExecContext(ctx, `
 	CREATE TABLE IF NOT EXISTS counter (
 		"name" VARCHAR(50) PRIMARY KEY,
-		"value" DOUBLE PRECISION
+		"value" NUMERIC
 	);`)
 	if err != nil {
 		db.Close()
