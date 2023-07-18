@@ -193,7 +193,7 @@ func (s *server) Updates(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, errMetricValue, http.StatusBadRequest)
 				return
 			}
-			log.Debug().Int64("metric value", *metric.Delta).Msg("COUNTER")
+			log.Debug().Int64("metric delta", *metric.Delta).Msg("COUNTER")
 			batchCounter = append(batchCounter, metric)
 			if len(batchCounter) >= batchSize {
 				_, err = s.metrics.AddCounterBatch(r.Context(), batchCounter)
