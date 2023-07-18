@@ -69,7 +69,7 @@ func NewDBStorage(ctx context.Context, dsn string) (*MemStorage, error) {
 		return nil, err
 	}
 
-	db.ExecContext(ctx, `
+	_, err = db.ExecContext(ctx, `
 	CREATE TABLE counter (
 		"name" VARCHAR(50) PRIMARY KEY,
 		"value" DOUBLE PRECISION
@@ -325,15 +325,21 @@ func (s *MemStorage) WriteAllGauge(ctx context.Context, wr io.Writer) error {
 			value monitor.Gauge
 		)
 		dataGauge := make(map[string]monitor.Gauge)
+
 		rows, err := s.stmtAllGauge.QueryContext(ctx)
 		if err != nil {
 			return err
 		}
+		defer rows.Close()
+
 		for rows.Next() {
 			if err = rows.Scan(&key, &value); err != nil {
 				return err
 			}
 			dataGauge[key] = value
+		}
+		if rows.Err() != nil {
+			return err
 		}
 
 		err = tmpl.Execute(wr, dataGauge)
@@ -365,11 +371,16 @@ func (s *MemStorage) WriteAllCounter(ctx context.Context, wr io.Writer) error {
 		if err != nil {
 			return err
 		}
+		defer rows.Close()
+
 		for rows.Next() {
 			if err = rows.Scan(&key, &value); err != nil {
 				return err
 			}
 			dataGauge[key] = value
+		}
+		if rows.Err() != nil {
+			return err
 		}
 
 		err = tmpl.Execute(wr, dataGauge)
