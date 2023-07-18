@@ -241,6 +241,42 @@ func (s *MemStorage) SetGauge(ctx context.Context, k string, v monitor.Gauge) (m
 	return s, nil
 }
 
+// SetGaugeBatch inserts or updates a gauge metrics batch.
+func (s *MemStorage) SetGaugeBatch(ctx context.Context, batch []*monitor.Metrics) (monitor.MetricRepo, error) {
+	if s.db != nil {
+		tx, err := s.db.BeginTxx(ctx, nil)
+		if err != nil {
+			return s, err
+		}
+		defer tx.Rollback()
+
+		stmt := tx.StmtxContext(ctx, s.stmtSetGauge)
+		defer stmt.Close()
+
+		for _, metric := range batch {
+			_, err = stmt.ExecContext(ctx, metric.ID, metric.Value)
+			if err != nil {
+				return s, err
+			}
+		}
+		err = tx.Commit()
+		return s, err
+	}
+
+	// No DB, use memory
+	s.m.Lock()
+	for _, metric := range batch {
+		s.DataGauge[metric.ID] = monitor.Gauge(*metric.Value) // won't be nil, checked for it earlier
+	}
+	s.m.Unlock()
+
+	if s.syncMode {
+		s.writeToFile()
+	}
+
+	return s, nil
+}
+
 // AddCounter adds a counter metric value v for the key k.
 func (s *MemStorage) AddCounter(ctx context.Context, k string, v monitor.Counter) (monitor.MetricRepo, error) {
 	if s.db != nil {
@@ -250,6 +286,42 @@ func (s *MemStorage) AddCounter(ctx context.Context, k string, v monitor.Counter
 
 	s.m.Lock()
 	s.DataCounter[k] += v
+	s.m.Unlock()
+
+	if s.syncMode {
+		s.writeToFile()
+	}
+
+	return s, nil
+}
+
+// AddCounterBatch adds a counter metrics batch.
+func (s *MemStorage) AddCounterBatch(ctx context.Context, batch []*monitor.Metrics) (monitor.MetricRepo, error) {
+	if s.db != nil {
+		tx, err := s.db.BeginTxx(ctx, nil)
+		if err != nil {
+			return s, err
+		}
+		defer tx.Rollback()
+
+		stmt := tx.StmtxContext(ctx, s.stmtAddCounter)
+		defer stmt.Close()
+
+		for _, metric := range batch {
+			_, err = stmt.ExecContext(ctx, metric.ID, metric.Delta)
+			if err != nil {
+				return s, err
+			}
+		}
+		err = tx.Commit()
+		return s, err
+	}
+
+	s.m.Lock()
+	for _, metric := range batch {
+		s.DataCounter[metric.ID] += monitor.Counter(*metric.Delta) // won't be nil, checked for it in the caller function
+
+	}
 	s.m.Unlock()
 
 	if s.syncMode {

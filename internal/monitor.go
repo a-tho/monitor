@@ -20,11 +20,13 @@ type Metrics struct {
 // stores a value for each metric name.
 type MetricRepo interface {
 	SetGauge(ctx context.Context, k string, v Gauge) (MetricRepo, error)
+	SetGaugeBatch(ctx context.Context, batch []*Metrics) (MetricRepo, error)
 	GetGauge(ctx context.Context, k string) (v Gauge, ok bool)
 	StringGauge(ctx context.Context) (string, error)
 	WriteAllGauge(ctx context.Context, wr io.Writer) error
 
 	AddCounter(ctx context.Context, k string, v Counter) (MetricRepo, error)
+	AddCounterBatch(ctx context.Context, batch []*Metrics) (MetricRepo, error)
 	GetCounter(ctx context.Context, k string) (v Counter, ok bool)
 	StringCounter(ctx context.Context) (string, error)
 	WriteAllCounter(ctx context.Context, wr io.Writer) error

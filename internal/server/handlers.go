@@ -13,6 +13,8 @@ import (
 )
 
 const (
+	batchSize = 1000
+
 	errPostMethod  = "use POST for saving metrics"
 	errMetricPath  = "invalid metric path"
 	errMetricType  = "invalid metric type"
@@ -141,6 +143,74 @@ func (s *server) Update(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add(contentType, typeApplicationJSON)
 	enc := json.NewEncoder(w)
 	enc.Encode(input)
+}
+
+func (s *server) Updates(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get(contentType) != typeApplicationJSON {
+		http.NotFound(w, r)
+		return
+	}
+
+	dec := json.NewDecoder(r.Body)
+
+	token, err := dec.Token()
+	if err != nil || token.(json.Delim) != '[' {
+		http.Error(w, errMetricValue, http.StatusBadRequest)
+		return
+	}
+
+	batchGauge := make([]*monitor.Metrics, 0, batchSize)
+	batchCounter := make([]*monitor.Metrics, 0, batchSize)
+	for dec.More() {
+		metric := &monitor.Metrics{}
+		if err = dec.Decode(metric); err != nil {
+			http.Error(w, errMetricValue, http.StatusBadRequest)
+			return
+		}
+
+		switch metric.MType {
+		case GaugePath:
+			if metric.Value == nil {
+				http.Error(w, errMetricValue, http.StatusBadRequest)
+				return
+			}
+			batchGauge = append(batchGauge, metric)
+			if len(batchGauge) >= batchSize {
+				_, err = s.metrics.SetGaugeBatch(r.Context(), batchGauge)
+				if err != nil {
+					http.Error(w, errMetricValue, http.StatusBadRequest)
+					return
+				}
+				batchGauge = batchGauge[:0]
+			}
+
+		case CounterPath:
+			if metric.Delta == nil {
+				http.Error(w, errMetricValue, http.StatusBadRequest)
+				return
+			}
+			batchCounter = append(batchCounter, metric)
+			if len(batchCounter) >= batchSize {
+				_, err = s.metrics.AddCounterBatch(r.Context(), batchCounter)
+				if err != nil {
+					http.Error(w, errMetricValue, http.StatusBadRequest)
+					return
+				}
+				batchCounter = batchCounter[:0]
+			}
+
+		default:
+			http.Error(w, errMetricType, http.StatusBadRequest)
+			return
+		}
+	}
+
+	if len(batchGauge) > 0 {
+		s.metrics.SetGaugeBatch(r.Context(), batchGauge)
+	}
+	if len(batchCounter) > 0 {
+		s.metrics.AddCounterBatch(r.Context(), batchCounter)
+	}
 }
 
 func (s *server) ValueLegacy(w http.ResponseWriter, r *http.Request) {

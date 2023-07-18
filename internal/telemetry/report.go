@@ -13,6 +13,8 @@ import (
 )
 
 func (o *Observer) report() error {
+	var metrics []*monitor.Metrics
+
 	for _, instance := range o.polled {
 		// Gauge metrics
 		for key, val := range instance.Gauges {
@@ -22,9 +24,8 @@ func (o *Observer) report() error {
 				MType: server.GaugePath,
 				Value: &valFloat,
 			}
-			if err := o.update(metric); err != nil {
-				return err
-			}
+			metrics = append(metrics, &metric)
+
 		}
 	}
 	// Counter metric
@@ -34,15 +35,16 @@ func (o *Observer) report() error {
 		MType: server.CounterPath,
 		Delta: &delta,
 	}
-	if err := o.update(metric); err != nil {
+	metrics = append(metrics, &metric)
+	if err := o.update(metrics); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (o *Observer) update(metric monitor.Metrics) error {
+func (o *Observer) update(metric []*monitor.Metrics) error {
 	// Prepare request url
-	url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdPath)
+	url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdsPath)
 	// Prepare request body
 	var buf bytes.Buffer
 	compressBuf := gzip.NewWriter(&buf)
