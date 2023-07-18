@@ -14,6 +14,7 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
+	"github.com/rs/zerolog/log"
 
 	monitor "github.com/a-tho/monitor/internal"
 )
@@ -43,9 +44,11 @@ type MemStorage struct {
 func New(dsn string, fileStoragePath string, storeInterval int, restore bool) (*MemStorage, error) {
 	if dsn != "" {
 		// DB may be available
-		if storage, err := NewDBStorage(context.TODO(), dsn); err == nil {
+		storage, err := NewDBStorage(context.TODO(), dsn)
+		if err == nil {
 			return storage, nil
 		}
+		log.Err(err).Msg("Failed to init DB storage. Now trying to init memory storage...")
 		// DB not available, revert to memory storage
 	}
 
@@ -60,7 +63,7 @@ func NewDBStorage(ctx context.Context, dsn string) (*MemStorage, error) {
 	}
 
 	_, err = db.ExecContext(ctx, `
-	CREATE TABLE gauge (
+	CREATE TABLE IF NOT EXISTS gauge (
 		"name" VARCHAR(50) PRIMARY KEY,
 		"value" NUMERIC
 	);`)
@@ -70,7 +73,7 @@ func NewDBStorage(ctx context.Context, dsn string) (*MemStorage, error) {
 	}
 
 	_, err = db.ExecContext(ctx, `
-	CREATE TABLE counter (
+	CREATE TABLE IF NOT EXISTS counter (
 		"name" VARCHAR(50) PRIMARY KEY,
 		"value" DOUBLE PRECISION
 	);`)
@@ -86,6 +89,7 @@ func NewDBStorage(ctx context.Context, dsn string) (*MemStorage, error) {
 	ON CONFLICT (name) DO UPDATE
 	SET value = EXCLUDED.value;`)
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 
@@ -96,18 +100,21 @@ func NewDBStorage(ctx context.Context, dsn string) (*MemStorage, error) {
 	ON CONFLICT (name) DO UPDATE
 	SET value = counter.value + EXCLUDED.value;`)
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 
 	stmtGetGauge, err := db.Preparex(`
 	SELECT value FROM gauge WHERE name = $1`)
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 
 	stmtGetCounter, err := db.Preparex(`
 	SELECT value FROM counter WHERE name = $1`)
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 
@@ -115,24 +122,28 @@ func NewDBStorage(ctx context.Context, dsn string) (*MemStorage, error) {
 	stmtStringGauge, err := db.Preparex(`
 	SELECT json_agg(row_to_json(gauge)) FROM gauge;`)
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 
 	stmtStringCounter, err := db.Preparex(`
 	SELECT json_agg(row_to_json(counter)) FROM counter;`)
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 
 	stmtAllGauge, err := db.Preparex(`
 	SELECT name, value FROM gauge`)
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 
 	stmtAllCounter, err := db.Preparex(`
 	SELECT name, value FROM counter`)
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 
@@ -147,6 +158,8 @@ func NewDBStorage(ctx context.Context, dsn string) (*MemStorage, error) {
 		stmtAllGauge:      stmtAllGauge,
 		stmtAllCounter:    stmtAllCounter,
 	}
+	log.Info().Msg("Initialized DB storage successfully")
+
 	return &storage, nil
 }
 
@@ -179,6 +192,8 @@ func NewMemStorage(fileStoragePath string, storeInterval int, restore bool) (*Me
 			go storage.memBackup(storeInterval)
 		}
 	}
+
+	log.Info().Msg("Initialized memory storage successfully")
 
 	return &storage, nil
 }

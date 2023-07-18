@@ -27,6 +27,8 @@ func run() error {
 	}
 	cfg.InitLogger()
 
+	cfg.Log()
+
 	cfg.Metrics, err = storage.New(cfg.DatabaseDSN, cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore)
 	if err != nil {
 		return err

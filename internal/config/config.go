@@ -50,3 +50,12 @@ func (c Config) InitLogger() {
 	out := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.StampMicro}
 	log.Logger = zerolog.New(out).Level(level).With().Timestamp().Stack().Caller().Logger()
 }
+
+func (c Config) Log() {
+	log.Info().Str("SrvAddr", c.SrvAddr).Msg("")
+	log.Info().Str("LogLevel", c.LogLevel).Msg("")
+	log.Info().Int("StoreInterval", c.StoreInterval).Msg("")
+	log.Info().Str("FileStoragePath", c.FileStoragePath).Msg("")
+	log.Info().Bool("Restore", c.Restore).Msg("")
+	log.Info().Str("DatabaseDSN", c.DatabaseDSN).Msg("")
+}
