@@ -334,7 +334,6 @@ func (s *MemStorage) AddCounterBatch(ctx context.Context, batch []*monitor.Metri
 // GetGauge retrieves the gauge value for the key k.
 func (s *MemStorage) GetGauge(ctx context.Context, k string) (v monitor.Gauge, ok bool) {
 	if s.db != nil {
-		log.Debug().Str("key", k).Msg("About to try to fetch a value in GetGauge")
 		row := s.stmtGetGauge.QueryRow(k)
 		if err := row.Scan(&v); err != nil {
 			return v, false
@@ -352,7 +351,6 @@ func (s *MemStorage) GetGauge(ctx context.Context, k string) (v monitor.Gauge, o
 // GetCounter retrieves the counter value for the key k.
 func (s *MemStorage) GetCounter(ctx context.Context, k string) (v monitor.Counter, ok bool) {
 	if s.db != nil {
-		log.Debug().Str("key", k).Msg("About to try to fetch a delta in GetCounter")
 		row := s.stmtGetCounter.QueryRowContext(ctx, k)
 		if err := row.Scan(&v); err != nil {
 			return v, false

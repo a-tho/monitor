@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog/log"
 
 	monitor "github.com/a-tho/monitor/internal"
 )
@@ -168,8 +167,6 @@ func (s *server) Updates(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, errMetricValue, http.StatusBadRequest)
 			return
 		}
-		log.Debug().Str("metric id", metric.ID).Msg("")
-		log.Debug().Str("metric mtype", metric.MType).Msg("")
 
 		switch metric.MType {
 		case GaugePath:
@@ -177,7 +174,6 @@ func (s *server) Updates(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, errMetricValue, http.StatusBadRequest)
 				return
 			}
-			log.Debug().Float64("metric value", *metric.Value).Msg("GAUGE")
 			batchGauge = append(batchGauge, metric)
 			if len(batchGauge) >= batchSize {
 				_, err = s.metrics.SetGaugeBatch(r.Context(), batchGauge)
@@ -193,7 +189,6 @@ func (s *server) Updates(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, errMetricValue, http.StatusBadRequest)
 				return
 			}
-			log.Debug().Int64("metric delta", *metric.Delta).Msg("COUNTER")
 			batchCounter = append(batchCounter, metric)
 			if len(batchCounter) >= batchSize {
 				_, err = s.metrics.AddCounterBatch(r.Context(), batchCounter)
