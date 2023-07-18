@@ -177,7 +177,11 @@ func (s *server) Value(w http.ResponseWriter, r *http.Request) {
 
 	var input monitor.Metrics
 	dec := json.NewDecoder(r.Body)
-	dec.Decode(&input)
+	err := dec.Decode(&input)
+	if err != nil {
+		http.Error(w, errMetricValue, http.StatusBadRequest)
+		return
+	}
 
 	if input.ID == "" {
 		http.Error(w, errMetricName, http.StatusBadRequest)
