@@ -133,7 +133,7 @@ func TestServerUpdHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metrics, err := storage.New("temporary_stub", "", 5, false)
+			metrics, err := storage.New(context.Background(), "temporary_stub", "", 5, false)
 			if assert.NoError(t, err) {
 				srv := httptest.NewServer(NewServer(metrics))
 				defer srv.Close()

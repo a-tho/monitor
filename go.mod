@@ -6,6 +6,7 @@ require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/go-resty/resty/v2 v2.7.0
+	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa
 	github.com/jackc/pgx/v5 v5.4.2
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/rs/zerolog v1.29.1

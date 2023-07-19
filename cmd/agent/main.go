@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 
@@ -28,8 +29,9 @@ func run() error {
 		return err
 	}
 
+	ctx := context.Background()
 	var obs monitor.Observer = telemetry.NewObserver(cfg.SrvAddr, cfg.Poll, cfg.Report/cfg.Poll)
-	if err := obs.Observe(); err != nil {
+	if err := obs.Observe(ctx); err != nil {
 		return err
 	}
 

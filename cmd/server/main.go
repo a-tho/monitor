@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"os/signal"
@@ -29,7 +30,8 @@ func run() error {
 
 	cfg.Log()
 
-	cfg.Metrics, err = storage.New(cfg.DatabaseDSN, cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore)
+	ctx := context.Background()
+	cfg.Metrics, err = storage.New(ctx, cfg.DatabaseDSN, cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore)
 	if err != nil {
 		return err
 	}

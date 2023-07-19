@@ -37,5 +37,5 @@ type MetricRepo interface {
 
 // An Observer is used to collect and transmit metrics.
 type Observer interface {
-	Observe() error
+	Observe(ctx context.Context) error
 }

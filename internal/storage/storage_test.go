@@ -37,7 +37,7 @@ func TestStorageSetGauge(t *testing.T) {
 		},
 	}
 
-	s, err := New("postgres://postgres:123456@localhost:5432/database", "", 5, false)
+	s, err := New(context.Background(), "postgres://postgres:123456@localhost:5432/database", "", 5, false)
 	if assert.NoError(t, err) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -80,7 +80,7 @@ func TestStorageAddCounter(t *testing.T) {
 		},
 	}
 
-	s, err := New("postgres://postgres:123456@localhost:5432/database", "", 5, false)
+	s, err := New(context.Background(), "postgres://postgres:123456@localhost:5432/database", "", 5, false)
 	if assert.NoError(t, err) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {

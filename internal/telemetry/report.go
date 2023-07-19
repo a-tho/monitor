@@ -3,16 +3,20 @@ package telemetry
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 
 	"github.com/go-resty/resty/v2"
 
 	monitor "github.com/a-tho/monitor/internal"
+	"github.com/a-tho/monitor/internal/retry"
 	"github.com/a-tho/monitor/internal/server"
 )
 
-func (o *Observer) report() error {
+func (o *Observer) report(ctx context.Context) error {
 	var metrics []*monitor.Metrics
 
 	for _, instance := range o.polled {
@@ -36,13 +40,13 @@ func (o *Observer) report() error {
 		Delta: &delta,
 	}
 	metrics = append(metrics, &metric)
-	if err := o.update(metrics); err != nil {
+	if err := o.update(ctx, metrics); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (o *Observer) update(metric []*monitor.Metrics) error {
+func (o *Observer) update(ctx context.Context, metric []*monitor.Metrics) error {
 	// Prepare request url
 	url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdsPath)
 	// Prepare request body
@@ -55,10 +59,25 @@ func (o *Observer) update(metric []*monitor.Metrics) error {
 	compressBuf.Close()
 
 	// Prepare and send request
-	client := resty.New()
-	if _, err := client.R().SetBody(buf.Bytes()).SetHeader(contentEncoding, encodingGzip).
-		SetHeader(contentType, typeApplicationJSON).Post(url); err != nil {
-		return err
+	err := retry.Do(ctx, func(context.Context) error {
+		client := resty.New()
+		_, err := client.R().
+			SetBody(buf.Bytes()).
+			SetHeader(contentEncoding, encodingGzip).
+			SetHeader(contentType, typeApplicationJSON).
+			SetContext(ctx).
+			Post(url)
+		return o.retryIfNetError(err)
+	})
+	return err
+}
+
+func (o *Observer) retryIfNetError(err error) error {
+	if err != nil {
+		var netErr *net.OpError
+		if errors.As(err, &netErr) {
+			return retry.RetriableError(err)
+		}
 	}
-	return nil
+	return err
 }

@@ -2,6 +2,7 @@
 package telemetry
 
 import (
+	"context"
 	"math/rand"
 	"runtime"
 	"time"
@@ -46,17 +47,23 @@ func NewObserver(srvAddr string, pollInterval, reportStep int) *Observer {
 	return &obs
 }
 
-func (o *Observer) Observe() error {
+func (o *Observer) Observe(ctx context.Context) error {
 	pollCount := 0
 	for {
 		o.poll(pollCount)
 
 		pollCount++
 		if pollCount%o.reportStep == 0 {
-			_ = o.report() // don't exit if failed to send metrics
+			_ = o.report(ctx) // don't exit if failed to send metrics
 		}
 
-		time.Sleep(o.pollInterval)
+		timer := time.NewTimer(o.pollInterval)
+		select {
+		case <-timer.C:
+			continue
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 }
 
