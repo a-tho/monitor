@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -12,6 +13,8 @@ import (
 )
 
 const (
+	batchSize = 1000
+
 	errPostMethod  = "use POST for saving metrics"
 	errMetricPath  = "invalid metric path"
 	errMetricType  = "invalid metric type"
@@ -19,6 +22,7 @@ const (
 	errMetricValue = "invalid metric value"
 	errMetricHTML  = "failed to generate HTML page with metrics"
 	errDecompress  = "failed to decompress request body"
+	errSetGauge    = "failed to set gauge value"
 
 	// HTML
 	metricsTemplate = `
@@ -63,14 +67,22 @@ func (s *server) UpdateLegacy(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, errMetricValue, http.StatusBadRequest)
 			return
 		}
-		s.metrics.SetGauge(name, monitor.Gauge(v))
+		_, err = s.metrics.SetGauge(r.Context(), name, monitor.Gauge(v))
+		if err != nil {
+			http.Error(w, errSetGauge, http.StatusInternalServerError)
+			return
+		}
 	case CounterPath:
 		v, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			http.Error(w, errMetricValue, http.StatusBadRequest)
 			return
 		}
-		s.metrics.AddCounter(name, monitor.Counter(v))
+		_, err = s.metrics.AddCounter(r.Context(), name, monitor.Counter(v))
+		if err != nil {
+			http.Error(w, errSetGauge, http.StatusInternalServerError)
+			return
+		}
 	default:
 		http.Error(w, errMetricPath, http.StatusBadRequest)
 	}
@@ -98,7 +110,11 @@ func (s *server) Update(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, errMetricValue, http.StatusBadRequest)
 			return
 		}
-		s.metrics.SetGauge(input.ID, monitor.Gauge(*input.Value))
+		_, err = s.metrics.SetGauge(r.Context(), input.ID, monitor.Gauge(*input.Value))
+		if err != nil {
+			http.Error(w, errSetGauge, http.StatusInternalServerError)
+			return
+		}
 
 		respValue = *input.Value
 
@@ -108,10 +124,14 @@ func (s *server) Update(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, errMetricValue, http.StatusBadRequest)
 			return
 		}
-		s.metrics.AddCounter(input.ID, monitor.Counter(*input.Delta))
+		_, err = s.metrics.AddCounter(r.Context(), input.ID, monitor.Counter(*input.Delta))
+		if err != nil {
+			http.Error(w, errSetGauge, http.StatusInternalServerError)
+			return
+		}
 
 		input.Delta = nil
-		counter, _ := s.metrics.GetCounter(input.ID)
+		counter, _ := s.metrics.GetCounter(r.Context(), input.ID)
 		respValue = float64(counter)
 
 	default:
@@ -125,13 +145,81 @@ func (s *server) Update(w http.ResponseWriter, r *http.Request) {
 	enc.Encode(input)
 }
 
+func (s *server) Updates(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get(contentType) != typeApplicationJSON {
+		http.NotFound(w, r)
+		return
+	}
+
+	dec := json.NewDecoder(r.Body)
+
+	token, err := dec.Token()
+	if err != nil || token.(json.Delim) != '[' {
+		http.Error(w, errMetricValue, http.StatusBadRequest)
+		return
+	}
+
+	batchGauge := make([]*monitor.Metrics, 0, batchSize)
+	batchCounter := make([]*monitor.Metrics, 0, batchSize)
+	for dec.More() {
+		metric := &monitor.Metrics{}
+		if err = dec.Decode(metric); err != nil {
+			http.Error(w, errMetricValue, http.StatusBadRequest)
+			return
+		}
+
+		switch metric.MType {
+		case GaugePath:
+			if metric.Value == nil {
+				http.Error(w, errMetricValue, http.StatusBadRequest)
+				return
+			}
+			batchGauge = append(batchGauge, metric)
+			if len(batchGauge) >= batchSize {
+				_, err = s.metrics.SetGaugeBatch(r.Context(), batchGauge)
+				if err != nil {
+					http.Error(w, errMetricValue, http.StatusBadRequest)
+					return
+				}
+				batchGauge = batchGauge[:0]
+			}
+
+		case CounterPath:
+			if metric.Delta == nil {
+				http.Error(w, errMetricValue, http.StatusBadRequest)
+				return
+			}
+			batchCounter = append(batchCounter, metric)
+			if len(batchCounter) >= batchSize {
+				_, err = s.metrics.AddCounterBatch(r.Context(), batchCounter)
+				if err != nil {
+					http.Error(w, errMetricValue, http.StatusBadRequest)
+					return
+				}
+				batchCounter = batchCounter[:0]
+			}
+
+		default:
+			http.Error(w, errMetricType, http.StatusBadRequest)
+			return
+		}
+	}
+
+	if len(batchGauge) > 0 {
+		s.metrics.SetGaugeBatch(r.Context(), batchGauge)
+	}
+	if len(batchCounter) > 0 {
+		s.metrics.AddCounterBatch(r.Context(), batchCounter)
+	}
+}
+
 func (s *server) ValueLegacy(w http.ResponseWriter, r *http.Request) {
 	typ := chi.URLParam(r, "type")
 	name := chi.URLParam(r, "name")
 
 	switch typ {
 	case GaugePath:
-		value, ok := s.metrics.GetGauge(name)
+		value, ok := s.metrics.GetGauge(r.Context(), name)
 		if !ok {
 			http.NotFound(w, r)
 			return
@@ -139,7 +227,7 @@ func (s *server) ValueLegacy(w http.ResponseWriter, r *http.Request) {
 		v := strconv.FormatFloat(float64(value), 'f', -1, 64)
 		w.Write([]byte(v))
 	case CounterPath:
-		value, ok := s.metrics.GetCounter(name)
+		value, ok := s.metrics.GetCounter(r.Context(), name)
 		if !ok {
 			http.NotFound(w, r)
 			return
@@ -159,7 +247,11 @@ func (s *server) Value(w http.ResponseWriter, r *http.Request) {
 
 	var input monitor.Metrics
 	dec := json.NewDecoder(r.Body)
-	dec.Decode(&input)
+	err := dec.Decode(&input)
+	if err != nil {
+		http.Error(w, errMetricValue, http.StatusBadRequest)
+		return
+	}
 
 	if input.ID == "" {
 		http.Error(w, errMetricName, http.StatusBadRequest)
@@ -168,7 +260,7 @@ func (s *server) Value(w http.ResponseWriter, r *http.Request) {
 	switch input.MType {
 	case GaugePath:
 
-		val, ok := s.metrics.GetGauge(input.ID)
+		val, ok := s.metrics.GetGauge(r.Context(), input.ID)
 		if !ok {
 			http.NotFound(w, r)
 			return
@@ -178,7 +270,7 @@ func (s *server) Value(w http.ResponseWriter, r *http.Request) {
 
 	case CounterPath:
 
-		count, ok := s.metrics.GetCounter(input.ID)
+		count, ok := s.metrics.GetCounter(r.Context(), input.ID)
 		if !ok {
 			http.NotFound(w, r)
 			return
@@ -198,13 +290,13 @@ func (s *server) Value(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) All(w http.ResponseWriter, r *http.Request) {
 	var gaugeBuf bytes.Buffer
-	if err := s.metrics.WriteAllGauge(&gaugeBuf); err != nil {
+	if err := s.metrics.WriteAllGauge(r.Context(), &gaugeBuf); err != nil {
 		http.Error(w, errMetricHTML, http.StatusInternalServerError)
 		return
 	}
 
 	var counterBuf bytes.Buffer
-	if err := s.metrics.WriteAllCounter(&counterBuf); err != nil {
+	if err := s.metrics.WriteAllCounter(r.Context(), &counterBuf); err != nil {
 		http.Error(w, errMetricHTML, http.StatusInternalServerError)
 		return
 	}
@@ -216,4 +308,11 @@ func (s *server) All(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(counterHeader))
 	w.Write(counterBuf.Bytes())
 	w.Write([]byte(pageFooter))
+}
+
+func (s *server) Ping(w http.ResponseWriter, r *http.Request) {
+	if err := s.metrics.PingContext(context.TODO()); err != nil {
+		http.Error(w, "ping unsuccessful", http.StatusInternalServerError)
+	}
+	w.Write(nil)
 }

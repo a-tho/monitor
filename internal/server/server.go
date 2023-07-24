@@ -30,17 +30,24 @@ func NewServer(
 	path = fmt.Sprintf("/%s/", UpdPath)
 	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Update)))
 
+	path = fmt.Sprintf("/%s/", UpdsPath)
+	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Updates)))
+
 	path = fmt.Sprintf("/%s/{%s}/{%s}", ValuePath, TypePath, NamePath)
 	mux.Get(path, mw.WithLogging(srv.ValueLegacy))
 
 	path = fmt.Sprintf("/%s/", ValuePath)
 	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Value)))
 
+	path = "/ping"
+	mux.Get(path, mw.WithLogging((mw.WithCompressing(srv.Ping))))
+
 	return mux
 }
 
 const (
-	UpdPath = "update"
+	UpdPath  = "update"
+	UpdsPath = "updates"
 
 	GaugePath   = "gauge"
 	CounterPath = "counter"

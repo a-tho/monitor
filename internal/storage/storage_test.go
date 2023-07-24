@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,15 +37,19 @@ func TestStorageSetGauge(t *testing.T) {
 		},
 	}
 
-	s := New("", 5, false)
+	s, err := New(context.Background(), "postgres://postgres:123456@localhost:5432/database", "", 5, false)
+	if assert.NoError(t, err) {
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			s.SetGauge(tt.args.k, tt.args.v)
-			assert.JSONEq(t, tt.want, s.StringGauge())
-		})
+				s.SetGauge(context.TODO(), tt.args.k, tt.args.v)
+				gaugeJSON, err := s.StringGauge(context.TODO())
+				assert.NoError(t, err)
+				assert.JSONEq(t, tt.want, gaugeJSON)
+			})
+		}
 	}
+
 }
 
 func TestStorageAddCounter(t *testing.T) {
@@ -75,13 +80,17 @@ func TestStorageAddCounter(t *testing.T) {
 		},
 	}
 
-	s := New("", 5, false)
+	s, err := New(context.Background(), "postgres://postgres:123456@localhost:5432/database", "", 5, false)
+	if assert.NoError(t, err) {
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			s.AddCounter(tt.args.k, tt.args.v)
-			assert.JSONEq(t, tt.want, s.StringCounter())
-		})
+				s.AddCounter(context.TODO(), tt.args.k, tt.args.v)
+				counterJSON, err := s.StringCounter(context.TODO())
+				assert.NoError(t, err)
+				assert.JSONEq(t, tt.want, counterJSON)
+			})
+		}
 	}
+
 }

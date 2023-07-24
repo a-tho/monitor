@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,13 +19,22 @@ func main() {
 }
 
 func run() error {
-	var cfg config.Config
+	var (
+		cfg config.Config
+		err error
+	)
 	if err := cfg.ParseConfig(); err != nil {
 		return err
 	}
 	cfg.InitLogger()
 
-	cfg.Metrics = storage.New(cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore)
+	cfg.Log()
+
+	ctx := context.Background()
+	cfg.Metrics, err = storage.New(ctx, cfg.DatabaseDSN, cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore)
+	if err != nil {
+		return err
+	}
 	defer cfg.Metrics.Close()
 
 	mux := server.NewServer(cfg.Metrics)

@@ -3,16 +3,22 @@ package telemetry
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 
 	"github.com/go-resty/resty/v2"
 
 	monitor "github.com/a-tho/monitor/internal"
+	"github.com/a-tho/monitor/internal/retry"
 	"github.com/a-tho/monitor/internal/server"
 )
 
-func (o *Observer) report() error {
+func (o *Observer) report(ctx context.Context) error {
+	var metrics []*monitor.Metrics
+
 	for _, instance := range o.polled {
 		// Gauge metrics
 		for key, val := range instance.Gauges {
@@ -22,9 +28,8 @@ func (o *Observer) report() error {
 				MType: server.GaugePath,
 				Value: &valFloat,
 			}
-			if err := o.update(metric); err != nil {
-				return err
-			}
+			metrics = append(metrics, &metric)
+
 		}
 	}
 	// Counter metric
@@ -34,15 +39,16 @@ func (o *Observer) report() error {
 		MType: server.CounterPath,
 		Delta: &delta,
 	}
-	if err := o.update(metric); err != nil {
+	metrics = append(metrics, &metric)
+	if err := o.update(ctx, metrics); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (o *Observer) update(metric monitor.Metrics) error {
+func (o *Observer) update(ctx context.Context, metric []*monitor.Metrics) error {
 	// Prepare request url
-	url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdPath)
+	url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdsPath)
 	// Prepare request body
 	var buf bytes.Buffer
 	compressBuf := gzip.NewWriter(&buf)
@@ -53,10 +59,25 @@ func (o *Observer) update(metric monitor.Metrics) error {
 	compressBuf.Close()
 
 	// Prepare and send request
-	client := resty.New()
-	if _, err := client.R().SetBody(buf.Bytes()).SetHeader(contentEncoding, encodingGzip).
-		SetHeader(contentType, typeApplicationJSON).Post(url); err != nil {
-		return err
+	err := retry.Do(ctx, func(context.Context) error {
+		client := resty.New()
+		_, err := client.R().
+			SetBody(buf.Bytes()).
+			SetHeader(contentEncoding, encodingGzip).
+			SetHeader(contentType, typeApplicationJSON).
+			SetContext(ctx).
+			Post(url)
+		return o.retryIfNetError(err)
+	})
+	return err
+}
+
+func (o *Observer) retryIfNetError(err error) error {
+	if err != nil {
+		var netErr *net.OpError
+		if errors.As(err, &netErr) {
+			return retry.RetriableError(err)
+		}
 	}
-	return nil
+	return err
 }
