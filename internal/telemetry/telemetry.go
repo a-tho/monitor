@@ -15,6 +15,7 @@ const (
 	contentType         = "Content-Type"
 	encodingGzip        = "gzip"
 	typeApplicationJSON = "application/json"
+	bodySignature       = "HashSHA256"
 )
 
 type Observer struct {
@@ -22,6 +23,7 @@ type Observer struct {
 	pollInterval   time.Duration
 	reportStep     int
 	reportInterval time.Duration
+	signKey        string
 
 	// local storage for the polled metrics that have not been reported yet
 	polled []MetricInstance
@@ -33,13 +35,14 @@ type MetricInstance struct {
 	Gauges map[string]monitor.Gauge
 }
 
-func NewObserver(srvAddr string, pollInterval, reportStep int) *Observer {
+func NewObserver(srvAddr string, pollInterval, reportStep int, signKey string) *Observer {
 	obs := Observer{
 		SrvAddr:        srvAddr,
 		pollInterval:   time.Duration(pollInterval) * time.Second,
 		reportStep:     reportStep,
 		reportInterval: time.Duration(pollInterval*reportStep) * time.Second,
 		polled:         make([]MetricInstance, reportStep),
+		signKey:        signKey,
 	}
 	for i := range obs.polled {
 		obs.polled[i].Gauges = make(map[string]monitor.Gauge)

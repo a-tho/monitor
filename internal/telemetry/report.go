@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -61,12 +63,20 @@ func (o *Observer) update(ctx context.Context, metric []*monitor.Metrics) error 
 	// Prepare and send request
 	err := retry.Do(ctx, func(context.Context) error {
 		client := resty.New()
-		_, err := client.R().
-			SetBody(buf.Bytes()).
+		body := buf.Bytes()
+		req := client.R().
+			SetBody(body).
 			SetHeader(contentEncoding, encodingGzip).
 			SetHeader(contentType, typeApplicationJSON).
-			SetContext(ctx).
-			Post(url)
+			SetContext(ctx)
+
+		// sign request body if necessary
+		if o.signKey != "" {
+			req.SetHeader(bodySignature, o.signature(body))
+		}
+
+		_, err := req.Post(url)
+
 		return o.retryIfNetError(err)
 	})
 	return err
@@ -80,4 +90,10 @@ func (o *Observer) retryIfNetError(err error) error {
 		}
 	}
 	return err
+}
+
+func (o *Observer) signature(body []byte) string {
+	hash := hmac.New(sha256.New, []byte(o.signKey))
+	hash.Write(body)
+	return string(hash.Sum(nil))
 }
