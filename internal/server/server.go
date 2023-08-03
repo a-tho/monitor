@@ -18,29 +18,30 @@ type server struct {
 // NewServer creates a new multiplexer with configured handlers
 func NewServer(
 	metrics monitor.MetricRepo,
+	key string,
 ) *chi.Mux {
 	srv := server{metrics: metrics}
 	mux := chi.NewRouter()
 
-	mux.Get("/", mw.WithLogging(mw.WithCompressing(srv.All)))
+	mux.Get("/", mw.WithSigning(mw.WithLogging(mw.WithCompressing(srv.All)), key))
 
 	path := fmt.Sprintf("/%s/{%s}/{%s}/{%s}", UpdPath, TypePath, NamePath, ValuePath)
 	mux.Post(path, mw.WithLogging(srv.UpdateLegacy))
 
 	path = fmt.Sprintf("/%s/", UpdPath)
-	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Update)))
+	mux.Post(path, mw.WithSigning(mw.WithLogging(mw.WithCompressing(srv.Update)), key))
 
 	path = fmt.Sprintf("/%s/", UpdsPath)
-	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Updates)))
+	mux.Post(path, mw.WithSigning(mw.WithLogging(mw.WithCompressing(srv.Updates)), key))
 
 	path = fmt.Sprintf("/%s/{%s}/{%s}", ValuePath, TypePath, NamePath)
 	mux.Get(path, mw.WithLogging(srv.ValueLegacy))
 
 	path = fmt.Sprintf("/%s/", ValuePath)
-	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Value)))
+	mux.Post(path, mw.WithSigning(mw.WithLogging(mw.WithCompressing(srv.Value)), key))
 
 	path = "/ping"
-	mux.Get(path, mw.WithLogging((mw.WithCompressing(srv.Ping))))
+	mux.Get(path, mw.WithSigning(mw.WithLogging((mw.WithCompressing(srv.Ping))), key))
 
 	return mux
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -95,5 +96,6 @@ func (o *Observer) retryIfNetError(err error) error {
 func (o *Observer) signature(body []byte) string {
 	hash := hmac.New(sha256.New, []byte(o.signKey))
 	hash.Write(body)
-	return string(hash.Sum(nil))
+	sum := hash.Sum(nil)
+	return base64.StdEncoding.EncodeToString(sum)
 }

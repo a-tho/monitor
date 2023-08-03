@@ -31,7 +31,7 @@ func (w *logResponseWriter) WriteHeader(code int) {
 }
 
 func WithLogging(handler func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
-	wrapped := func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
 		respData := respData{code: 200}
@@ -49,5 +49,4 @@ func WithLogging(handler func(w http.ResponseWriter, r *http.Request)) http.Hand
 		log.Info().Int("code", respData.code).Msg("")
 		log.Info().Int("size", respData.size).Msg("")
 	}
-	return wrapped
 }
