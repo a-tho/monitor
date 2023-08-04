@@ -22,7 +22,13 @@ type hashResponseWriter struct {
 	http.ResponseWriter
 }
 
-func (hrw hashResponseWriter) Write(p []byte) (n int, err error) {
+func newHashResponseWriter(w http.ResponseWriter) *hashResponseWriter {
+	return &hashResponseWriter{
+		ResponseWriter: w,
+	}
+}
+
+func (hrw *hashResponseWriter) Write(p []byte) (n int, err error) {
 	return hrw.body.Write(p)
 }
 
@@ -59,7 +65,7 @@ func WithSigning(handler func(w http.ResponseWriter, r *http.Request), key []byt
 			r.Body = io.NopCloser(bytes.NewBuffer(body))
 
 			// Prepare response body to be able to sign it
-			hashW := hashResponseWriter{ResponseWriter: w}
+			hashW := newHashResponseWriter(w)
 
 			handler(hashW, r)
 
