@@ -9,14 +9,6 @@ import (
 	monitor "github.com/a-tho/monitor/internal"
 )
 
-const (
-	contentEncoding     = "Content-Encoding"
-	contentType         = "Content-Type"
-	encodingGzip        = "gzip"
-	typeApplicationJSON = "application/json"
-	bodySignature       = "HashSHA256"
-)
-
 type Observer struct {
 	SrvAddr        string
 	pollInterval   time.Duration

@@ -19,38 +19,13 @@ import (
 	"github.com/a-tho/monitor/internal/server"
 )
 
-func (o Observer) report(ctx context.Context, metric []*monitor.Metrics) error {
-	// Prepare request url
-	url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdsPath)
-	// Prepare request body
-	var buf bytes.Buffer
-	compressBuf := gzip.NewWriter(&buf)
-	enc := json.NewEncoder(compressBuf)
-	if err := enc.Encode(metric); err != nil {
-		return err
-	}
-	compressBuf.Close()
-
-	// Prepare and send request
-	err := retry.Do(ctx, func(context.Context) error {
-		client := resty.New()
-		body := buf.Bytes()
-		req := client.R().
-			SetBody(body).
-			SetHeader(contentEncoding, encodingGzip).
-			SetHeader(contentType, typeApplicationJSON).
-			SetContext(ctx)
-
-		// sign request body if necessary
-		if len(o.signKey) > 0 {
-			req.SetHeader(bodySignature, o.signature(body))
-		}
-
-		_, err := req.Post(url)
-
-		return o.retryIfNetError(err)
-	})
-	return err
+const (
+	contentEncoding     = "Content-Encoding"
+	contentType         = "Content-Type"
+	encodingGzip        = "gzip"
+	typeApplicationJSON = "application/json"
+	bodySignature       = "HashSHA256"
+)
 }
 
 func (o Observer) signature(body []byte) string {
