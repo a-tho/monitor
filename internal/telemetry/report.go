@@ -72,7 +72,7 @@ func (o *Observer) update(ctx context.Context, metric []*monitor.Metrics) error 
 			SetContext(ctx)
 
 		// sign request body if necessary
-		if o.signKey != "" {
+		if len(o.signKey) > 0 {
 			req.SetHeader(bodySignature, o.signature(body))
 		}
 
@@ -94,7 +94,7 @@ func (o *Observer) retryIfNetError(err error) error {
 }
 
 func (o *Observer) signature(body []byte) string {
-	hash := hmac.New(sha256.New, []byte(o.signKey))
+	hash := hmac.New(sha256.New, o.signKey)
 	hash.Write(body)
 	sum := hash.Sum(nil)
 	return base64.StdEncoding.EncodeToString(sum)

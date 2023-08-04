@@ -3,6 +3,7 @@ package telemetry
 
 import (
 	"context"
+	"encoding/base64"
 	"math/rand"
 	"runtime"
 	"time"
@@ -23,7 +24,7 @@ type Observer struct {
 	pollInterval   time.Duration
 	reportStep     int
 	reportInterval time.Duration
-	signKey        string
+	signKey        []byte
 
 	// local storage for the polled metrics that have not been reported yet
 	polled []MetricInstance
@@ -35,7 +36,12 @@ type MetricInstance struct {
 	Gauges map[string]monitor.Gauge
 }
 
-func NewObserver(srvAddr string, pollInterval, reportStep int, signKey string) *Observer {
+func NewObserver(srvAddr string, pollInterval, reportStep int, signKeyStr string) *Observer {
+	signKey, err := base64.StdEncoding.DecodeString(signKeyStr)
+	if err != nil {
+		signKey = []byte{}
+	}
+
 	obs := Observer{
 		SrvAddr:        srvAddr,
 		pollInterval:   time.Duration(pollInterval) * time.Second,

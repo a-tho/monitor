@@ -1,19 +1,19 @@
 package middleware
 
 import (
-	"crypto/hmac"
-	"encoding/base64"
 	"bytes"
-	"io"
+	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/base64"
+	"io"
 	"net/http"
 )
 
 const (
 	bodySignature = "HashSHA256"
 
-	errReadBody = "unreadable request body"
-	errWriteBody  = "failed to write response body"
+	errReadBody  = "unreadable request body"
+	errWriteBody = "failed to write response body"
 	errSignature = "invalid signature"
 )
 
@@ -26,9 +26,9 @@ func (hrw hashResponseWriter) Write(p []byte) (n int, err error) {
 	return hrw.body.Write(p)
 }
 
-func WithSigning(handler func(w http.ResponseWriter, r *http.Request), key string) http.HandlerFunc {
+func WithSigning(handler func(w http.ResponseWriter, r *http.Request), key []byte) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if key != "" {
+		if len(key) > 0 {
 			// Check signature if body is not empty
 			// 1. recreate signature if body is not empty
 			body, err := io.ReadAll(r.Body)
@@ -81,8 +81,8 @@ func WithSigning(handler func(w http.ResponseWriter, r *http.Request), key strin
 	}
 }
 
-func hash(value []byte, key string) []byte {
-	hash := hmac.New(sha256.New, []byte(key))
+func hash(value []byte, key []byte) []byte {
+	hash := hmac.New(sha256.New, key)
 	hash.Write(value)
 	return hash.Sum(nil)
 }

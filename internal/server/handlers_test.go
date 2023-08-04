@@ -31,7 +31,7 @@ type want struct {
 	respBody    string
 	contentType string
 
-	//Storage-related fields
+	// Storage-related fields
 	gauge   string
 	counter string
 }
