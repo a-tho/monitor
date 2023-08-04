@@ -19,37 +19,7 @@ import (
 	"github.com/a-tho/monitor/internal/server"
 )
 
-func (o *Observer) report(ctx context.Context) error {
-	var metrics []*monitor.Metrics
-
-	for _, instance := range o.polled {
-		// Gauge metrics
-		for key, val := range instance.Gauges {
-			valFloat := float64(val)
-			metric := monitor.Metrics{
-				ID:    key,
-				MType: server.GaugePath,
-				Value: &valFloat,
-			}
-			metrics = append(metrics, &metric)
-
-		}
-	}
-	// Counter metric
-	delta := int64(o.reportStep)
-	metric := monitor.Metrics{
-		ID:    "PollCount",
-		MType: server.CounterPath,
-		Delta: &delta,
-	}
-	metrics = append(metrics, &metric)
-	if err := o.update(ctx, metrics); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (o *Observer) update(ctx context.Context, metric []*monitor.Metrics) error {
+func (o Observer) report(ctx context.Context, metric []*monitor.Metrics) error {
 	// Prepare request url
 	url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdsPath)
 	// Prepare request body
@@ -83,7 +53,14 @@ func (o *Observer) update(ctx context.Context, metric []*monitor.Metrics) error 
 	return err
 }
 
-func (o *Observer) retryIfNetError(err error) error {
+func (o Observer) signature(body []byte) string {
+	hash := hmac.New(sha256.New, o.signKey)
+	hash.Write(body)
+	sum := hash.Sum(nil)
+	return base64.StdEncoding.EncodeToString(sum)
+}
+
+func (o Observer) retryIfNetError(err error) error {
 	if err != nil {
 		var netErr *net.OpError
 		if errors.As(err, &netErr) {
@@ -91,11 +68,4 @@ func (o *Observer) retryIfNetError(err error) error {
 		}
 	}
 	return err
-}
-
-func (o *Observer) signature(body []byte) string {
-	hash := hmac.New(sha256.New, o.signKey)
-	hash.Write(body)
-	sum := hash.Sum(nil)
-	return base64.StdEncoding.EncodeToString(sum)
 }

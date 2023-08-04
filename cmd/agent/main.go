@@ -12,10 +12,11 @@ import (
 )
 
 type Config struct {
-	SrvAddr string `env:"ADDRESS"`
-	Poll    int    `env:"POLL_INTERVAL"`
-	Report  int    `env:"REPORT_INTERVAL"`
-	Key     string `env:"KEY"`
+	SrvAddr   string `env:"ADDRESS"`
+	Poll      int    `env:"POLL_INTERVAL"`
+	Report    int    `env:"REPORT_INTERVAL"`
+	Key       string `env:"KEY"`
+	RateLimit int    `env:"RATE_LIMIT"`
 }
 
 func main() {
@@ -44,6 +45,7 @@ func parseConfig(cfg *Config) error {
 	flag.IntVar(&cfg.Poll, "p", 2, "rate of polling metrics in seconds")
 	flag.IntVar(&cfg.Report, "r", 10, "rate of reporting metrics in seconds")
 	flag.StringVar(&cfg.Key, "k", "", "key to sign requests with")
+	flag.IntVar(&cfg.RateLimit, "l", 5, "max number of outgoing requests")
 	flag.Parse()
 
 	// Both poll/report intervals must be positive, report interval has to be
