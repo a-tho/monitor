@@ -32,7 +32,7 @@ func run() error {
 	}
 
 	ctx := context.Background()
-	var obs monitor.Observer = telemetry.NewObserver(cfg.SrvAddr, cfg.Poll, cfg.Report/cfg.Poll, cfg.Key)
+	var obs monitor.Observer = telemetry.NewObserver(cfg.SrvAddr, cfg.Poll, cfg.Report/cfg.Poll, cfg.Key, cfg.RateLimit)
 	if err := obs.Observe(ctx); err != nil {
 		return err
 	}

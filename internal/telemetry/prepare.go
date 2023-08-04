@@ -12,7 +12,7 @@ import (
 	"github.com/a-tho/monitor/internal/server"
 )
 
-func (o *Observer) prepare(ctx context.Context) error {
+func (o *Observer) prepare(ctx context.Context, toReport chan<- []*monitor.Metrics) error {
 	var metrics []*monitor.Metrics
 
 	// Add polled metrics (gauge)
@@ -61,9 +61,7 @@ func (o *Observer) prepare(ctx context.Context) error {
 	}
 
 	// Send prepared metrics batch to worker pool
-	if err := o.report(ctx, metrics); err != nil {
-		return err
-	}
+	toReport <- metrics
 
 	return nil
 }
