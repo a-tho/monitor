@@ -46,19 +46,17 @@ func WithSigning(handler func(w http.ResponseWriter, r *http.Request), key []byt
 				signWant := hash(body, key)
 				// 2. retrieve received signature
 				signGotEncoded := r.Header.Values(bodySignature)
-				if len(signGotEncoded) == 0 {
-					http.Error(w, errSignature, http.StatusBadRequest)
-					return
-				}
-				signGot, err := base64.StdEncoding.DecodeString(signGotEncoded[0])
-				if err != nil {
-					http.Error(w, errSignature, http.StatusBadRequest)
-					return
-				}
-				// 3. compare the two
-				if !hmac.Equal(signGot, signWant) {
-					http.Error(w, errReadBody, http.StatusBadRequest)
-					return
+				if len(signGotEncoded) != 0 {
+					signGot, err := base64.StdEncoding.DecodeString(signGotEncoded[0])
+					if err != nil {
+						http.Error(w, errSignature, http.StatusBadRequest)
+						return
+					}
+					// 3. compare the two
+					if !hmac.Equal(signGot, signWant) {
+						http.Error(w, errReadBody, http.StatusBadRequest)
+						return
+					}
 				}
 			}
 			// 4. put the body back to let the handler use it
