@@ -12,9 +12,11 @@ import (
 )
 
 type Config struct {
-	SrvAddr string `env:"ADDRESS"`
-	Poll    int    `env:"POLL_INTERVAL"`
-	Report  int    `env:"REPORT_INTERVAL"`
+	SrvAddr   string `env:"ADDRESS"`
+	Poll      int    `env:"POLL_INTERVAL"`
+	Report    int    `env:"REPORT_INTERVAL"`
+	Key       string `env:"KEY"`
+	RateLimit int    `env:"RATE_LIMIT"`
 }
 
 func main() {
@@ -30,7 +32,7 @@ func run() error {
 	}
 
 	ctx := context.Background()
-	var obs monitor.Observer = telemetry.NewObserver(cfg.SrvAddr, cfg.Poll, cfg.Report/cfg.Poll)
+	var obs monitor.Observer = telemetry.NewObserver(cfg.SrvAddr, cfg.Poll, cfg.Report/cfg.Poll, cfg.Key, cfg.RateLimit)
 	if err := obs.Observe(ctx); err != nil {
 		return err
 	}
@@ -42,6 +44,8 @@ func parseConfig(cfg *Config) error {
 	flag.StringVar(&cfg.SrvAddr, "a", "localhost:8080", "address and port to run server")
 	flag.IntVar(&cfg.Poll, "p", 2, "rate of polling metrics in seconds")
 	flag.IntVar(&cfg.Report, "r", 10, "rate of reporting metrics in seconds")
+	flag.StringVar(&cfg.Key, "k", "", "key to sign requests with")
+	flag.IntVar(&cfg.RateLimit, "l", 5, "max number of outgoing requests")
 	flag.Parse()
 
 	// Both poll/report intervals must be positive, report interval has to be

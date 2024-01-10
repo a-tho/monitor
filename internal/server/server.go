@@ -3,6 +3,7 @@
 package server
 
 import (
+	"encoding/base64"
 	"fmt"
 
 	"github.com/go-chi/chi/v5"
@@ -18,29 +19,35 @@ type server struct {
 // NewServer creates a new multiplexer with configured handlers
 func NewServer(
 	metrics monitor.MetricRepo,
+	signKeyStr string,
 ) *chi.Mux {
 	srv := server{metrics: metrics}
 	mux := chi.NewRouter()
 
-	mux.Get("/", mw.WithLogging(mw.WithCompressing(srv.All)))
+	signKey, err := base64.StdEncoding.DecodeString(signKeyStr)
+	if err != nil {
+		signKey = []byte{}
+	}
+
+	mux.Get("/", mw.WithLogging(mw.WithSigning(mw.WithCompressing(srv.All), signKey)))
 
 	path := fmt.Sprintf("/%s/{%s}/{%s}/{%s}", UpdPath, TypePath, NamePath, ValuePath)
 	mux.Post(path, mw.WithLogging(srv.UpdateLegacy))
 
 	path = fmt.Sprintf("/%s/", UpdPath)
-	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Update)))
+	mux.Post(path, mw.WithLogging(mw.WithSigning(mw.WithCompressing(srv.Update), signKey)))
 
 	path = fmt.Sprintf("/%s/", UpdsPath)
-	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Updates)))
+	mux.Post(path, mw.WithLogging(mw.WithSigning(mw.WithCompressing(srv.Updates), signKey)))
 
 	path = fmt.Sprintf("/%s/{%s}/{%s}", ValuePath, TypePath, NamePath)
 	mux.Get(path, mw.WithLogging(srv.ValueLegacy))
 
 	path = fmt.Sprintf("/%s/", ValuePath)
-	mux.Post(path, mw.WithLogging(mw.WithCompressing(srv.Value)))
+	mux.Post(path, mw.WithLogging(mw.WithSigning(mw.WithCompressing(srv.Value), signKey)))
 
 	path = "/ping"
-	mux.Get(path, mw.WithLogging((mw.WithCompressing(srv.Ping))))
+	mux.Get(path, mw.WithLogging(mw.WithSigning(mw.WithCompressing(srv.Ping), signKey)))
 
 	return mux
 }

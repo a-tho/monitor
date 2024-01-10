@@ -31,7 +31,7 @@ type want struct {
 	respBody    string
 	contentType string
 
-	//Storage-related fields
+	// Storage-related fields
 	gauge   string
 	counter string
 }
@@ -135,7 +135,7 @@ func TestServerUpdHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			metrics, err := storage.New(context.Background(), "temporary_stub", "", 5, false)
 			if assert.NoError(t, err) {
-				srv := httptest.NewServer(NewServer(metrics))
+				srv := httptest.NewServer(NewServer(metrics, ""))
 				defer srv.Close()
 
 				resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil)

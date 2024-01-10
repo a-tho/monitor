@@ -41,7 +41,6 @@ func TestStorageSetGauge(t *testing.T) {
 	if assert.NoError(t, err) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-
 				s.SetGauge(context.TODO(), tt.args.k, tt.args.v)
 				gaugeJSON, err := s.StringGauge(context.TODO())
 				assert.NoError(t, err)
@@ -49,7 +48,6 @@ func TestStorageSetGauge(t *testing.T) {
 			})
 		}
 	}
-
 }
 
 func TestStorageAddCounter(t *testing.T) {
@@ -84,7 +82,6 @@ func TestStorageAddCounter(t *testing.T) {
 	if assert.NoError(t, err) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-
 				s.AddCounter(context.TODO(), tt.args.k, tt.args.v)
 				counterJSON, err := s.StringCounter(context.TODO())
 				assert.NoError(t, err)
@@ -92,5 +89,4 @@ func TestStorageAddCounter(t *testing.T) {
 			})
 		}
 	}
-
 }

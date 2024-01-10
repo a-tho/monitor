@@ -187,7 +187,7 @@ func NewMemStorage(ctx context.Context, fileStoragePath string, storeInterval in
 		var file *os.File
 
 		err := retry.Do(ctx, func(ctx context.Context) (err error) {
-			file, err = os.OpenFile(fileStoragePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
+			file, err = os.OpenFile(fileStoragePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0o644)
 			if err != nil {
 				return retry.RetriableError(err)
 			}
@@ -358,7 +358,6 @@ func (s *MemStorage) AddCounterBatch(ctx context.Context, batch []*monitor.Metri
 	s.m.Lock()
 	for _, metric := range batch {
 		s.DataCounter[metric.ID] += monitor.Counter(*metric.Delta) // won't be nil, checked for it in the caller function
-
 	}
 	s.m.Unlock()
 
@@ -377,7 +376,6 @@ func (s *MemStorage) GetGauge(ctx context.Context, k string) (v monitor.Gauge, o
 			err := row.Scan(&v)
 			return s.retryIfPgConnException(err)
 		})
-
 		if err != nil {
 			return v, false
 		}
@@ -399,7 +397,6 @@ func (s *MemStorage) GetCounter(ctx context.Context, k string) (v monitor.Counte
 			err := row.Scan(&v)
 			return s.retryIfPgConnException(err)
 		})
-
 		if err != nil {
 			return v, false
 		}

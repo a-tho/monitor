@@ -62,7 +62,7 @@ func (r *decompReaderCloser) Close() error {
 }
 
 func WithCompressing(handler func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
-	wrapped := func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		// Decompress request if necessary
 		encodings := r.Header.Values(contentEncoding)
 		isCompressed := contains(encodings, encodingGzip)
@@ -86,7 +86,6 @@ func WithCompressing(handler func(w http.ResponseWriter, r *http.Request)) http.
 
 		handler(w, r)
 	}
-	return wrapped
 }
 
 func contains(ss []string, str string) bool {

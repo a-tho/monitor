@@ -20,6 +20,7 @@ type Config struct {
 	StoreInterval   int    `env:"STORE_INTERVAL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
+	Key             string `env:"KEY"`
 
 	// Storage
 	Metrics     monitor.MetricRepo
@@ -32,6 +33,7 @@ func (c *Config) ParseConfig() error {
 	flag.IntVar(&c.StoreInterval, "i", 300, "interval in seconds after which readings saved to disk")
 	flag.StringVar(&c.FileStoragePath, "f", "/tmp/metrics-db.json", "file where to save current values")
 	flag.BoolVar(&c.Restore, "r", true, "whether or not to load previously saved values on server start")
+	flag.StringVar(&c.Key, "k", "", "key to verify/sign requests/responses with")
 	flag.StringVar(&c.DatabaseDSN, "d", "", "database dsn")
 	flag.Parse()
 
