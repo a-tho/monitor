@@ -1,12 +1,18 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -40,7 +46,7 @@ type state struct {
 	metrics monitor.MetricRepo
 }
 
-func testRequest(t *testing.T, srv *httptest.Server, method, path string, body io.Reader) (*http.Response, string) {
+func testRequest(t require.TestingT, srv *httptest.Server, method, path string, body io.Reader) (*http.Response, string) {
 	req, err := http.NewRequest(method, srv.URL+path, body)
 	require.NoError(t, err)
 
@@ -133,7 +139,7 @@ func TestServerUpdHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metrics, err := storage.New(context.Background(), "temporary_stub", "", 5, false)
+			metrics, err := storage.New(context.Background(), "", "", 5, false)
 			if assert.NoError(t, err) {
 				srv := httptest.NewServer(NewServer(metrics))
 				defer srv.Close()
@@ -217,3 +223,173 @@ func TestServerUpdHandler(t *testing.T) {
 // 		})
 // 	}
 // }
+
+func BenchmarkUpdateGauge(b *testing.B) {
+	log.Logger = log.Logger.Level(zerolog.ErrorLevel)
+
+	metrics, err := storage.New(context.Background(), "", "", 5, false)
+	if assert.NoError(b, err) {
+		// Init the server to test
+		srv := httptest.NewServer(NewServer(metrics))
+		defer srv.Close()
+
+		method := http.MethodPost
+		input := monitor.Metrics{MType: GaugePath}
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
+
+			input.ID = strconv.Itoa(i)
+			iFloat := float64(i)
+			input.Value = &iFloat
+
+			b.StartTimer()
+
+			var body bytes.Buffer
+			enc := json.NewEncoder(&body)
+			enc.Encode(input)
+
+			testRequest(b, srv, method,
+				"/"+UpdPath,
+				&body)
+		}
+	}
+}
+
+func BenchmarkUpdateCounter(b *testing.B) {
+	log.Logger = log.Logger.Level(zerolog.ErrorLevel)
+
+	metrics, err := storage.New(context.Background(), "", "", 5, false)
+	if assert.NoError(b, err) {
+		// Init the server to test
+		srv := httptest.NewServer(NewServer(metrics))
+		defer srv.Close()
+
+		b.ResetTimer()
+		method := http.MethodPost
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
+
+			iStr := strconv.Itoa(i)
+
+			b.StartTimer()
+
+			testRequest(b, srv, method,
+				"/"+UpdPath+"/"+GaugePath+"/"+iStr+"/"+iStr,
+				nil)
+		}
+	}
+}
+
+func BenchmarkUpdatesGaugeAdd(b *testing.B) {
+	log.Logger = log.Logger.Level(zerolog.ErrorLevel)
+
+	metrics, err := storage.New(context.Background(), "", "", 5, false)
+	if assert.NoError(b, err) {
+		// Init the server to test
+		srv := httptest.NewServer(NewServer(metrics))
+		defer srv.Close()
+
+		// Init empty inputs
+		batchLen := 3000
+		batchesCount := 3000
+		inputs := make([][]monitor.Metrics, batchesCount)
+		for i := range inputs {
+			inputs[i] = make([]monitor.Metrics, batchLen)
+		}
+
+		// Init non-overlapping inputs for "Add"
+		for i := range inputs {
+			for j := range inputs[i] {
+				// "02220333" for batchNum = 222, batchPos = 333
+				inputs[i][j].ID = fmt.Sprintf(
+					"%0"+strconv.Itoa(len(strconv.Itoa(batchesCount)))+"d"+
+						"%0"+strconv.Itoa(len(strconv.Itoa(batchLen)))+"d",
+					i, j,
+				)
+				inputs[i][j].MType = GaugePath
+				value := float64(j)
+				inputs[i][j].Value = &value
+			}
+		}
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			var body bytes.Buffer
+			enc := json.NewEncoder(&body)
+			enc.Encode(inputs[i%batchesCount])
+			b.StartTimer()
+
+			testRequest(b, srv, http.MethodPost, "/"+UpdsPath, &body)
+		}
+	}
+}
+
+func BenchmarkUpdatesGaugeUpdate(b *testing.B) {
+	log.Logger = log.Logger.Level(zerolog.ErrorLevel)
+
+	metrics, err := storage.New(context.Background(), "", "", 5, false)
+	if assert.NoError(b, err) {
+		// Init the server to test
+		srv := httptest.NewServer(NewServer(metrics))
+		defer srv.Close()
+
+		// Init empty inputs
+		batchLen := 3000
+		batchesCount := 3000
+		inputs := make([][]monitor.Metrics, batchesCount)
+		for i := range inputs {
+			inputs[i] = make([]monitor.Metrics, batchLen)
+		}
+
+		// Init overlapping inputs for "Update"
+		for i := range inputs {
+			for j := range inputs[i] {
+				inputs[i][j].ID = strconv.Itoa(j)
+				inputs[i][j].MType = GaugePath
+				value := float64(j)
+				inputs[i][j].Value = &value
+			}
+		}
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			var body bytes.Buffer
+			enc := json.NewEncoder(&body)
+			enc.Encode(inputs[i%batchesCount])
+			b.StartTimer()
+
+			testRequest(b, srv, http.MethodPost, "/"+UpdsPath, &body)
+		}
+	}
+}
+
+func BenchmarkAll(b *testing.B) {
+	log.Logger = log.Logger.Level(zerolog.ErrorLevel)
+
+	metrics, err := storage.New(context.Background(), "", "", 5, false)
+	if assert.NoError(b, err) {
+		// Init the server to test
+		srv := httptest.NewServer(NewServer(metrics))
+		defer srv.Close()
+
+		// Set up the values in the storage
+		valuesCount := 3000
+		for i := 0; i < valuesCount; i++ {
+			metrics.SetGauge(context.Background(), strconv.Itoa(i), monitor.Gauge(i))
+		}
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			req, err := http.NewRequest(http.MethodGet, srv.URL+"/", nil)
+			require.NoError(b, err)
+			resp, err := srv.Client().Do(req)
+			require.NoError(b, err)
+			defer resp.Body.Close()
+		}
+	}
+}
