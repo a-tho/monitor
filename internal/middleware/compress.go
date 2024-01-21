@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 const (
@@ -13,15 +14,23 @@ const (
 	acceptEncoding  = "Accept-Encoding"
 )
 
+var gzipPool = sync.Pool{New: func() interface{} {
+	w, _ := gzip.NewWriterLevel(nil, gzip.BestSpeed)
+	return w
+}}
+
 type compResponseWriter struct {
 	http.ResponseWriter
 	cw *gzip.Writer
 }
 
 func newCompReponseWriter(w http.ResponseWriter) *compResponseWriter {
+	z := gzipPool.Get().(*gzip.Writer)
+	z.Reset(w)
+
 	return &compResponseWriter{
 		ResponseWriter: w,
-		cw:             gzip.NewWriter(w),
+		cw:             z,
 	}
 }
 
@@ -34,6 +43,8 @@ func (w *compResponseWriter) Write(p []byte) (n int, err error) {
 }
 
 func (w *compResponseWriter) Close() error {
+	defer gzipPool.Put(w.cw)
+
 	return w.cw.Close()
 }
 
