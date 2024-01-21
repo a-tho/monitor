@@ -1,3 +1,5 @@
+// Package middleware implements compression- and logging-related middleware
+// for handlers.
 package middleware
 
 import (
