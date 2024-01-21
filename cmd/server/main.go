@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -40,6 +41,12 @@ func run() error {
 	mux := server.NewServer(cfg.Metrics)
 	go func() {
 		if err := http.ListenAndServe(cfg.SrvAddr, mux); err != nil {
+			panic(err)
+		}
+	}()
+
+	go func() {
+		if err := http.ListenAndServe(cfg.ProfAddr, nil); err != nil {
 			panic(err)
 		}
 	}()
