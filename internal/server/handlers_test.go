@@ -60,8 +60,6 @@ func testRequest(t require.TestingT, srv *httptest.Server, method, path string, 
 	resp, err := srv.Client().Do(req)
 	require.NoError(t, err)
 
-	defer resp.Body.Close()
-
 	respBody, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
@@ -404,9 +402,11 @@ func BenchmarkUpdateGauge(b *testing.B) {
 			enc := json.NewEncoder(&body)
 			enc.Encode(input)
 
-			testRequest(b, srv, method,
+			resp, _ := testRequest(b, srv, method,
 				"/"+UpdPath,
 				nil, &body)
+
+			resp.Body.Close()
 		}
 	}
 }
@@ -429,9 +429,10 @@ func BenchmarkUpdateCounter(b *testing.B) {
 
 			b.StartTimer()
 
-			testRequest(b, srv, method,
+			resp, _ := testRequest(b, srv, method,
 				"/"+UpdPath+"/"+GaugePath+"/"+iStr+"/"+iStr,
 				nil, nil)
+			resp.Body.Close()
 		}
 	}
 }
@@ -477,7 +478,8 @@ func BenchmarkUpdatesGaugeAdd(b *testing.B) {
 			enc.Encode(inputs[i%batchesCount])
 			b.StartTimer()
 
-			testRequest(b, srv, http.MethodPost, "/"+UpdsPath, nil, &body)
+			resp, _ := testRequest(b, srv, http.MethodPost, "/"+UpdsPath, nil, &body)
+			resp.Body.Close()
 		}
 	}
 }
@@ -518,7 +520,8 @@ func BenchmarkUpdatesGaugeUpdate(b *testing.B) {
 			enc.Encode(inputs[i%batchesCount])
 			b.StartTimer()
 
-			testRequest(b, srv, http.MethodPost, "/"+UpdsPath, nil, &body)
+			resp, _ := testRequest(b, srv, http.MethodPost, "/"+UpdsPath, nil, &body)
+			resp.Body.Close()
 		}
 	}
 }
