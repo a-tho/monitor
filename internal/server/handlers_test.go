@@ -60,6 +60,8 @@ func testRequest(t require.TestingT, srv *httptest.Server, method, path string, 
 	resp, err := srv.Client().Do(req)
 	require.NoError(t, err)
 
+	defer resp.Body.Close()
+
 	respBody, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
