@@ -15,8 +15,8 @@ type server struct {
 	metrics monitor.MetricRepo
 }
 
-// NewServer creates a new multiplexer with configured handlers
-func NewServer(
+// NewMux creates a new multiplexer with configured handlers
+func NewMux(
 	metrics monitor.MetricRepo,
 ) *chi.Mux {
 	srv := server{metrics: metrics}

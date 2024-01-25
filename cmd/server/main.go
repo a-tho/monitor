@@ -38,7 +38,7 @@ func run() error {
 	}
 	defer cfg.Metrics.Close()
 
-	mux := server.NewServer(cfg.Metrics)
+	mux := server.NewMux(cfg.Metrics)
 	go func() {
 		if err := http.ListenAndServe(cfg.SrvAddr, mux); err != nil {
 			panic(err)

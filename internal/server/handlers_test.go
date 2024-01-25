@@ -163,7 +163,7 @@ func TestServerUpdLegacyHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			metrics, err := storage.New(context.Background(), "", "", 5, false)
 			if assert.NoError(t, err) {
-				srv := httptest.NewServer(NewServer(metrics))
+				srv := httptest.NewServer(NewMux(metrics))
 				defer srv.Close()
 
 				resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil, nil)
@@ -287,7 +287,7 @@ func TestServerUpdHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			metrics, err := storage.New(context.Background(), "", "", 5, false)
 			if assert.NoError(t, err) {
-				srv := httptest.NewServer(NewServer(metrics))
+				srv := httptest.NewServer(NewMux(metrics))
 				defer srv.Close()
 
 				resp, respBody := testRequest(
@@ -383,7 +383,7 @@ func BenchmarkUpdateGauge(b *testing.B) {
 	metrics, err := storage.New(context.Background(), "", "", 5, false)
 	if assert.NoError(b, err) {
 		// Init the server to test
-		srv := httptest.NewServer(NewServer(metrics))
+		srv := httptest.NewServer(NewMux(metrics))
 		defer srv.Close()
 
 		method := http.MethodPost
@@ -417,7 +417,7 @@ func BenchmarkUpdateCounter(b *testing.B) {
 	metrics, err := storage.New(context.Background(), "", "", 5, false)
 	if assert.NoError(b, err) {
 		// Init the server to test
-		srv := httptest.NewServer(NewServer(metrics))
+		srv := httptest.NewServer(NewMux(metrics))
 		defer srv.Close()
 
 		b.ResetTimer()
@@ -443,7 +443,7 @@ func BenchmarkUpdatesGaugeAdd(b *testing.B) {
 	metrics, err := storage.New(context.Background(), "", "", 5, false)
 	if assert.NoError(b, err) {
 		// Init the server to test
-		srv := httptest.NewServer(NewServer(metrics))
+		srv := httptest.NewServer(NewMux(metrics))
 		defer srv.Close()
 
 		// Init empty inputs
@@ -490,7 +490,7 @@ func BenchmarkUpdatesGaugeUpdate(b *testing.B) {
 	metrics, err := storage.New(context.Background(), "", "", 5, false)
 	if assert.NoError(b, err) {
 		// Init the server to test
-		srv := httptest.NewServer(NewServer(metrics))
+		srv := httptest.NewServer(NewMux(metrics))
 		defer srv.Close()
 
 		// Init empty inputs
@@ -532,7 +532,7 @@ func BenchmarkAll(b *testing.B) {
 	metrics, err := storage.New(context.Background(), "", "", 5, false)
 	if assert.NoError(b, err) {
 		// Init the server to test
-		srv := httptest.NewServer(NewServer(metrics))
+		srv := httptest.NewServer(NewMux(metrics))
 		defer srv.Close()
 
 		// Set up the values in the storage
