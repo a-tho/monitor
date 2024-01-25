@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -27,8 +29,10 @@ const (
 )
 
 type request struct {
-	method string
-	path   string
+	method  string
+	path    string
+	body    io.Reader
+	headers map[string]string
 }
 
 type want struct {
@@ -46,9 +50,12 @@ type state struct {
 	metrics monitor.MetricRepo
 }
 
-func testRequest(t require.TestingT, srv *httptest.Server, method, path string, body io.Reader) (*http.Response, string) {
+func testRequest(t require.TestingT, srv *httptest.Server, method, path string, headers map[string]string, body io.Reader) (*http.Response, string) {
 	req, err := http.NewRequest(method, srv.URL+path, body)
 	require.NoError(t, err)
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
 
 	resp, err := srv.Client().Do(req)
 	require.NoError(t, err)
@@ -59,7 +66,22 @@ func testRequest(t require.TestingT, srv *httptest.Server, method, path string, 
 	return resp, string(respBody)
 }
 
-func TestServerUpdHandler(t *testing.T) {
+func compressJSONBody(t require.TestingT, body interface{}) io.Reader {
+	var buf bytes.Buffer
+
+	gzipWriter := gzip.NewWriter(&buf)
+	defer gzipWriter.Close()
+
+	err := json.NewEncoder(gzipWriter).Encode(body)
+	require.NoError(t, err)
+
+	err = gzipWriter.Close()
+	require.NoError(t, err)
+
+	return &buf
+}
+
+func TestServerUpdLegacyHandler(t *testing.T) {
 	tests := []struct {
 		name    string
 		request request
@@ -144,7 +166,138 @@ func TestServerUpdHandler(t *testing.T) {
 				srv := httptest.NewServer(NewServer(metrics, ""))
 				defer srv.Close()
 
-				resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil)
+				resp, respBody := testRequest(t, srv, tt.request.method, tt.request.path, nil, nil)
+				defer resp.Body.Close()
+
+				// Validate response
+				assert.Equal(t, tt.want.code, resp.StatusCode)
+				assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-Type"))
+				assert.Equal(t, tt.want.respBody, string(respBody))
+
+				// Validate server storage
+				gaugeJSON, err := metrics.StringGauge(context.TODO())
+				assert.NoError(t, err)
+				assert.JSONEq(t, tt.want.gauge, gaugeJSON)
+				counterJSON, err := metrics.StringCounter(context.TODO())
+				assert.NoError(t, err)
+				assert.JSONEq(t, tt.want.counter, counterJSON)
+			}
+		})
+	}
+}
+
+func TestServerUpdHandler(t *testing.T) {
+	tests := []struct {
+		name    string
+		request request
+		want    want
+	}{
+		{
+			name: "invalid request method",
+			request: request{
+				method: http.MethodGet,
+				path:   "/" + UpdPath + "/",
+				body: strings.NewReader(
+					`{"id":"Apple","type":"gauge","value":3}`,
+				),
+				headers: map[string]string{contentType: typeApplicationJSON},
+			},
+			want: want{
+				code:        http.StatusMethodNotAllowed,
+				respBody:    "",
+				contentType: "",
+				gauge:       `{}`,
+				counter:     `{}`,
+			},
+		},
+		{
+			name: "wrong metric type",
+			request: request{
+				method: http.MethodPost,
+				path:   "/" + UpdPath + "/",
+				body: strings.NewReader(
+					`{"id":"Apple","type":"wrongtype","value":3.0}`,
+				),
+				headers: map[string]string{contentType: typeApplicationJSON},
+			},
+			want: want{
+				code:        http.StatusBadRequest,
+				respBody:    errMetricType + "\n",
+				contentType: textPlain,
+				gauge:       `{}`,
+				counter:     `{}`,
+			},
+		},
+		{
+			name: "no content type",
+			request: request{
+				method: http.MethodPost,
+				path:   "/" + UpdPath + "/",
+				body: strings.NewReader(
+					`{"id":"Apple","type":"counter","value":3}`,
+				),
+			},
+			want: want{
+				code:        http.StatusNotFound,
+				respBody:    notFoundResponse,
+				contentType: textPlain,
+				gauge:       "{}",
+				counter:     "{}",
+			},
+		},
+		{
+			name: "wrong metric value for counter",
+			request: request{
+				method: http.MethodPost,
+				path:   "/" + UpdPath + "/",
+				body: strings.NewReader(
+					`{"id":"Apple","type":"counter","value":"wrongvalue"}`,
+				),
+				headers: map[string]string{contentType: typeApplicationJSON},
+			},
+			want: want{
+				code:        http.StatusBadRequest,
+				respBody:    errMetricValue + "\n",
+				contentType: textPlain,
+				gauge:       `{}`,
+				counter:     `{}`,
+			},
+		},
+		{
+			name: "valid gauge request",
+			request: request{
+				method: http.MethodPost,
+				path:   "/" + UpdPath + "/",
+				body: strings.NewReader(
+					`{"id":"Apple","type":"gauge","value":3}`,
+				),
+				headers: map[string]string{contentType: typeApplicationJSON},
+			},
+			want: want{
+				code:        http.StatusOK,
+				respBody:    `{"id":"Apple","type":"gauge","value":3}` + "\n",
+				contentType: typeApplicationJSON,
+				gauge:       `{"Apple": 3}`,
+				counter:     "{}",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			metrics, err := storage.New(context.Background(), "", "", 5, false)
+			if assert.NoError(t, err) {
+				srv := httptest.NewServer(NewServer(metrics, ""))
+				defer srv.Close()
+
+				resp, respBody := testRequest(
+					t,
+					srv,
+					tt.request.method,
+					tt.request.path,
+					tt.request.headers,
+					tt.request.body,
+				)
 				defer resp.Body.Close()
 
 				// Validate response
@@ -224,6 +377,40 @@ func TestServerUpdHandler(t *testing.T) {
 // 	}
 // }
 
+func BenchmarkUpdateGauge(b *testing.B) {
+	log.Logger = log.Logger.Level(zerolog.ErrorLevel)
+
+	metrics, err := storage.New(context.Background(), "", "", 5, false)
+	if assert.NoError(b, err) {
+		// Init the server to test
+		srv := httptest.NewServer(NewServer(metrics, ""))
+		defer srv.Close()
+
+		method := http.MethodPost
+		input := monitor.Metrics{MType: GaugePath}
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
+
+			input.ID = strconv.Itoa(i)
+			iFloat := float64(i)
+			input.Value = &iFloat
+
+			b.StartTimer()
+
+			var body bytes.Buffer
+			enc := json.NewEncoder(&body)
+			enc.Encode(input)
+
+			resp, _ := testRequest(b, srv, method,
+				"/"+UpdPath,
+				nil, &body)
+
+			resp.Body.Close()
+		}
+	}
+}
+
 func BenchmarkUpdateCounter(b *testing.B) {
 	log.Logger = log.Logger.Level(zerolog.ErrorLevel)
 
@@ -244,7 +431,7 @@ func BenchmarkUpdateCounter(b *testing.B) {
 
 			resp, _ := testRequest(b, srv, method,
 				"/"+UpdPath+"/"+GaugePath+"/"+iStr+"/"+iStr,
-				nil)
+				nil, nil)
 			defer resp.Body.Close()
 		}
 	}
@@ -291,7 +478,7 @@ func BenchmarkUpdatesGaugeAdd(b *testing.B) {
 			enc.Encode(inputs[i%batchesCount])
 			b.StartTimer()
 
-			resp, _ := testRequest(b, srv, http.MethodPost, "/"+UpdsPath, &body)
+			resp, _ := testRequest(b, srv, http.MethodPost, "/"+UpdsPath, nil, &body)
 			defer resp.Body.Close()
 		}
 	}
@@ -333,7 +520,7 @@ func BenchmarkUpdatesGaugeUpdate(b *testing.B) {
 			enc.Encode(inputs[i%batchesCount])
 			b.StartTimer()
 
-			resp, _ := testRequest(b, srv, http.MethodPost, "/"+UpdsPath, &body)
+			resp, _ := testRequest(b, srv, http.MethodPost, "/"+UpdsPath, nil, &body)
 			defer resp.Body.Close()
 		}
 	}
