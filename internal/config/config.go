@@ -15,6 +15,7 @@ import (
 type Config struct {
 	// Flags
 	SrvAddr         string `env:"ADDRESS"`
+	ProfAddr        string `env:"PROF_ADDRESS"`
 	LogLevel        string `env:"LOG_LEVEL"`
 	LogFormat       string `env:"LOG_FORMAT"`
 	StoreInterval   int    `env:"STORE_INTERVAL"`
@@ -29,6 +30,7 @@ type Config struct {
 
 func (c *Config) ParseConfig() error {
 	flag.StringVar(&c.SrvAddr, "a", "localhost:8080", "address and port to run server")
+	flag.StringVar(&c.ProfAddr, "p", "localhost:9090", "address and port to expose profile")
 	flag.StringVar(&c.LogLevel, "log", "debug", "log level")
 	flag.IntVar(&c.StoreInterval, "i", 300, "interval in seconds after which readings saved to disk")
 	flag.StringVar(&c.FileStoragePath, "f", "/tmp/metrics-db.json", "file where to save current values")

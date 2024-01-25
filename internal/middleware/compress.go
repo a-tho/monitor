@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 const (
@@ -13,15 +14,23 @@ const (
 	acceptEncoding  = "Accept-Encoding"
 )
 
+var gzipPool = sync.Pool{New: func() interface{} {
+	w, _ := gzip.NewWriterLevel(nil, gzip.BestSpeed)
+	return w
+}}
+
 type compResponseWriter struct {
 	http.ResponseWriter
 	cw *gzip.Writer
 }
 
 func newCompReponseWriter(w http.ResponseWriter) *compResponseWriter {
+	z := gzipPool.Get().(*gzip.Writer)
+	z.Reset(w)
+
 	return &compResponseWriter{
 		ResponseWriter: w,
-		cw:             gzip.NewWriter(w),
+		cw:             z,
 	}
 }
 
@@ -29,11 +38,13 @@ func (w *compResponseWriter) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 
-func (w *compResponseWriter) Write(p []byte) (n int, err error) {
+func (w *compResponseWriter) Write(p []byte) (int, error) {
 	return w.cw.Write(p)
 }
 
 func (w *compResponseWriter) Close() error {
+	defer gzipPool.Put(w.cw)
+
 	return w.cw.Close()
 }
 
@@ -50,7 +61,7 @@ func newDecompReaderCloser(r io.ReadCloser) (*decompReaderCloser, error) {
 	return &decompReaderCloser{ReadCloser: r, dr: dr}, nil
 }
 
-func (r *decompReaderCloser) Read(p []byte) (n int, err error) {
+func (r *decompReaderCloser) Read(p []byte) (int, error) {
 	return r.dr.Read(p)
 }
 
