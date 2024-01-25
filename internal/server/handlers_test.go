@@ -242,9 +242,10 @@ func BenchmarkUpdateCounter(b *testing.B) {
 
 			b.StartTimer()
 
-			testRequest(b, srv, method,
+			resp, _ := testRequest(b, srv, method,
 				"/"+UpdPath+"/"+GaugePath+"/"+iStr+"/"+iStr,
 				nil)
+			defer resp.Body.Close()
 		}
 	}
 }
@@ -290,7 +291,8 @@ func BenchmarkUpdatesGaugeAdd(b *testing.B) {
 			enc.Encode(inputs[i%batchesCount])
 			b.StartTimer()
 
-			testRequest(b, srv, http.MethodPost, "/"+UpdsPath, &body)
+			resp, _ := testRequest(b, srv, http.MethodPost, "/"+UpdsPath, &body)
+			defer resp.Body.Close()
 		}
 	}
 }
@@ -331,7 +333,8 @@ func BenchmarkUpdatesGaugeUpdate(b *testing.B) {
 			enc.Encode(inputs[i%batchesCount])
 			b.StartTimer()
 
-			testRequest(b, srv, http.MethodPost, "/"+UpdsPath, &body)
+			resp, _ := testRequest(b, srv, http.MethodPost, "/"+UpdsPath, &body)
+			defer resp.Body.Close()
 		}
 	}
 }
