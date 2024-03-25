@@ -9,7 +9,7 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 
 	monitor "github.com/a-tho/monitor/internal"
-	"github.com/a-tho/monitor/internal/server"
+	"github.com/a-tho/monitor/pkg/server"
 )
 
 func (o *Observer) prepare(ctx context.Context, toReport chan<- []*monitor.Metrics) error {

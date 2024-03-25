@@ -20,7 +20,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	monitor "github.com/a-tho/monitor/internal"
-	"github.com/a-tho/monitor/internal/retry"
+	"github.com/a-tho/monitor/pkg/retry"
 )
 
 // MemStorage represents the storage.
@@ -48,7 +48,7 @@ type MemStorage struct {
 func New(ctx context.Context, dsn string, fileStoragePath string, storeInterval int, restore bool) (*MemStorage, error) {
 	if dsn != "" {
 		// DB may be available
-		storage, err := NewDBStorage(ctx, dsn)
+		storage, err := newDBStorage(ctx, dsn)
 		if err == nil {
 			return storage, nil
 		}
@@ -57,10 +57,10 @@ func New(ctx context.Context, dsn string, fileStoragePath string, storeInterval 
 	}
 
 	// No available database, store in memory
-	return NewMemStorage(ctx, fileStoragePath, storeInterval, restore)
+	return newMemStorage(ctx, fileStoragePath, storeInterval, restore)
 }
 
-func NewDBStorage(ctx context.Context, dsn string) (*MemStorage, error) {
+func newDBStorage(ctx context.Context, dsn string) (*MemStorage, error) {
 	storage := MemStorage{}
 
 	err := retry.Do(ctx, func(context.Context) error {
@@ -177,7 +177,7 @@ func NewDBStorage(ctx context.Context, dsn string) (*MemStorage, error) {
 	return &storage, nil
 }
 
-func NewMemStorage(ctx context.Context, fileStoragePath string, storeInterval int, restore bool) (*MemStorage, error) {
+func newMemStorage(ctx context.Context, fileStoragePath string, storeInterval int, restore bool) (*MemStorage, error) {
 	storage := MemStorage{
 		DataGauge:   make(map[string]monitor.Gauge),
 		DataCounter: make(map[string]monitor.Counter),
@@ -563,6 +563,7 @@ func (s *MemStorage) WriteAllCounter(ctx context.Context, wr io.Writer) error {
 	return err
 }
 
+// PingContext pings the underlying storage (database).
 func (s *MemStorage) PingContext(ctx context.Context) error {
 	err := retry.Do(ctx, func(context.Context) error {
 		err := s.db.PingContext(ctx)
@@ -572,6 +573,8 @@ func (s *MemStorage) PingContext(ctx context.Context) error {
 	return err
 }
 
+// Close closes the connection to the underlying storage (database) and
+// helper statements.
 func (s *MemStorage) Close() error {
 	if s.db != nil {
 		s.stmtSetGauge.Close()

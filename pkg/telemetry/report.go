@@ -15,8 +15,8 @@ import (
 	"github.com/go-resty/resty/v2"
 
 	monitor "github.com/a-tho/monitor/internal"
-	"github.com/a-tho/monitor/internal/retry"
-	"github.com/a-tho/monitor/internal/server"
+	"github.com/a-tho/monitor/pkg/retry"
+	"github.com/a-tho/monitor/pkg/server"
 )
 
 const (

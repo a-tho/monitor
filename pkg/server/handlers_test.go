@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	monitor "github.com/a-tho/monitor/internal"
-	"github.com/a-tho/monitor/internal/storage"
+	"github.com/a-tho/monitor/pkg/storage"
 )
 
 const (
@@ -62,6 +62,19 @@ func testRequest(t require.TestingT, srv *httptest.Server, method, path string, 
 
 	respBody, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
+
+	return resp, string(respBody)
+}
+
+func benchmarkRequest(srv *httptest.Server, method, path string, headers map[string]string, body io.Reader) (*http.Response, string) {
+	req, _ := http.NewRequest(method, srv.URL+path, body)
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	resp, _ := srv.Client().Do(req)
+
+	respBody, _ := io.ReadAll(resp.Body)
 
 	return resp, string(respBody)
 }
@@ -402,7 +415,7 @@ func BenchmarkUpdateGauge(b *testing.B) {
 			enc := json.NewEncoder(&body)
 			enc.Encode(input)
 
-			resp, _ := testRequest(b, srv, method,
+			resp, _ := benchmarkRequest(srv, method,
 				"/"+UpdPath,
 				nil, &body)
 
@@ -429,7 +442,7 @@ func BenchmarkUpdateCounter(b *testing.B) {
 
 			b.StartTimer()
 
-			resp, _ := testRequest(b, srv, method,
+			resp, _ := benchmarkRequest(srv, method,
 				"/"+UpdPath+"/"+GaugePath+"/"+iStr+"/"+iStr,
 				nil, nil)
 			defer resp.Body.Close()
@@ -478,7 +491,7 @@ func BenchmarkUpdatesGaugeAdd(b *testing.B) {
 			enc.Encode(inputs[i%batchesCount])
 			b.StartTimer()
 
-			resp, _ := testRequest(b, srv, http.MethodPost, "/"+UpdsPath, nil, &body)
+			resp, _ := benchmarkRequest(srv, http.MethodPost, "/"+UpdsPath, nil, &body)
 			defer resp.Body.Close()
 		}
 	}
@@ -520,7 +533,7 @@ func BenchmarkUpdatesGaugeUpdate(b *testing.B) {
 			enc.Encode(inputs[i%batchesCount])
 			b.StartTimer()
 
-			resp, _ := testRequest(b, srv, http.MethodPost, "/"+UpdsPath, nil, &body)
+			resp, _ := benchmarkRequest(srv, http.MethodPost, "/"+UpdsPath, nil, &body)
 			defer resp.Body.Close()
 		}
 	}
@@ -543,10 +556,8 @@ func BenchmarkAll(b *testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			req, err := http.NewRequest(http.MethodGet, srv.URL+"/", nil)
-			require.NoError(b, err)
-			resp, err := srv.Client().Do(req)
-			require.NoError(b, err)
+			req, _ := http.NewRequest(http.MethodGet, srv.URL+"/", nil)
+			resp, _ := srv.Client().Do(req)
 			defer resp.Body.Close()
 		}
 	}

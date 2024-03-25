@@ -32,6 +32,7 @@ func (hrw *hashResponseWriter) Write(p []byte) (n int, err error) {
 	return hrw.body.Write(p)
 }
 
+// WithSigning adds support for request and response signing.
 func WithSigning(handler func(w http.ResponseWriter, r *http.Request), key []byte) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if len(key) > 0 {

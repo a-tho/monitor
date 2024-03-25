@@ -1,3 +1,4 @@
+// Package middleware implements middleware necessary to process requests.
 package middleware
 
 import (
@@ -72,6 +73,7 @@ func (r *decompReaderCloser) Close() error {
 	return r.dr.Close()
 }
 
+// WithCompressing adds support for request and response compression.
 func WithCompressing(handler func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Decompress request if necessary

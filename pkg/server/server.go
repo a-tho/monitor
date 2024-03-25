@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	monitor "github.com/a-tho/monitor/internal"
-	mw "github.com/a-tho/monitor/internal/middleware"
+	mw "github.com/a-tho/monitor/pkg/middleware"
 )
 
 type server struct {
@@ -53,13 +53,20 @@ func NewServer(
 }
 
 const (
-	UpdPath  = "update"
+	// UpdPath is the path to update handler.
+	UpdPath = "update"
+	// UpdsPath is the path to updates handler.
 	UpdsPath = "updates"
 
-	GaugePath   = "gauge"
+	// GaugePath is the path to gauge handler.
+	GaugePath = "gauge"
+	// CounterPath is the path to counter handler.
 	CounterPath = "counter"
 
-	TypePath  = "type"
-	NamePath  = "name"
+	// TypePath is the path to type handler.
+	TypePath = "type"
+	// NamePath is the path to name handler.
+	NamePath = "name"
+	// ValuePath is the path to value handler.
 	ValuePath = "value"
 )

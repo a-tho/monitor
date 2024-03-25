@@ -1,3 +1,4 @@
+// Package retry implements retriable functions.
 package retry
 
 import (
@@ -12,6 +13,8 @@ type retriableError struct {
 
 type retriableFunc func(context.Context) error
 
+// RetriableError returns a new instance of a retriable error, useful for error
+// outputting.
 func RetriableError(err error) *retriableError {
 	return &retriableError{err: err}
 }

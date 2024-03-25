@@ -9,8 +9,8 @@ import (
 	"syscall"
 
 	"github.com/a-tho/monitor/internal/config"
-	"github.com/a-tho/monitor/internal/server"
-	"github.com/a-tho/monitor/internal/storage"
+	"github.com/a-tho/monitor/pkg/server"
+	"github.com/a-tho/monitor/pkg/storage"
 )
 
 func main() {
