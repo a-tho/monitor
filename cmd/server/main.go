@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/a-tho/monitor/internal/config"
-	"github.com/a-tho/monitor/internal/server"
-	"github.com/a-tho/monitor/internal/storage"
+	"github.com/a-tho/monitor/pkg/server"
+	"github.com/a-tho/monitor/pkg/storage"
 )
 
 func main() {
@@ -40,6 +41,12 @@ func run() error {
 	mux := server.NewServer(cfg.Metrics, cfg.Key)
 	go func() {
 		if err := http.ListenAndServe(cfg.SrvAddr, mux); err != nil {
+			panic(err)
+		}
+	}()
+
+	go func() {
+		if err := http.ListenAndServe(cfg.ProfAddr, nil); err != nil {
 			panic(err)
 		}
 	}()

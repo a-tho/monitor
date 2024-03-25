@@ -50,7 +50,7 @@ const (
 	encodingGzip        = "gzip"
 )
 
-// UpdateLegacy handles requests for adding metrics
+// UpdateLegacy handles requests for adding a metrics instance.
 func (s *server) UpdateLegacy(w http.ResponseWriter, r *http.Request) {
 	typ := chi.URLParam(r, TypePath)
 	name := chi.URLParam(r, NamePath)
@@ -88,6 +88,7 @@ func (s *server) UpdateLegacy(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Update handles requests for adding a metrics instance.
 func (s *server) Update(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get(contentType) != typeApplicationJSON {
 		http.NotFound(w, r)
@@ -145,6 +146,7 @@ func (s *server) Update(w http.ResponseWriter, r *http.Request) {
 	enc.Encode(input)
 }
 
+// Updates handles requests for adding many metrics instances at once.
 func (s *server) Updates(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get(contentType) != typeApplicationJSON {
 		http.NotFound(w, r)
@@ -213,6 +215,7 @@ func (s *server) Updates(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ValueLegacy handles requests for getting a metrics instance.
 func (s *server) ValueLegacy(w http.ResponseWriter, r *http.Request) {
 	typ := chi.URLParam(r, "type")
 	name := chi.URLParam(r, "name")
@@ -239,6 +242,7 @@ func (s *server) ValueLegacy(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Value handles requests for getting a metrics instance.
 func (s *server) Value(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get(contentType) != typeApplicationJSON {
 		http.NotFound(w, r)
@@ -288,6 +292,7 @@ func (s *server) Value(w http.ResponseWriter, r *http.Request) {
 	enc.Encode(input)
 }
 
+// All handles requests for getting all metrics instances at once.
 func (s *server) All(w http.ResponseWriter, r *http.Request) {
 	var gaugeBuf bytes.Buffer
 	if err := s.metrics.WriteAllGauge(r.Context(), &gaugeBuf); err != nil {

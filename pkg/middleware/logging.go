@@ -30,6 +30,7 @@ func (w *logResponseWriter) WriteHeader(code int) {
 	w.data.code = code
 }
 
+// WithLogging adds support for request and response logging.
 func WithLogging(handler func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()

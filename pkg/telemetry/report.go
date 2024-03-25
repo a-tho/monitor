@@ -15,8 +15,8 @@ import (
 	"github.com/go-resty/resty/v2"
 
 	monitor "github.com/a-tho/monitor/internal"
-	"github.com/a-tho/monitor/internal/retry"
-	"github.com/a-tho/monitor/internal/server"
+	"github.com/a-tho/monitor/pkg/retry"
+	"github.com/a-tho/monitor/pkg/server"
 )
 
 const (
@@ -28,6 +28,9 @@ const (
 )
 
 func (o Observer) report(ctx context.Context, metrics <-chan []*monitor.Metrics) {
+	var buf bytes.Buffer
+	compressBuf := gzip.NewWriter(&buf)
+
 	for {
 		select {
 		case metric, ok := <-metrics:
@@ -37,8 +40,8 @@ func (o Observer) report(ctx context.Context, metrics <-chan []*monitor.Metrics)
 			// Prepare request url
 			url := fmt.Sprintf("http://%s/%s/", o.SrvAddr, server.UpdsPath)
 			// Prepare request body
-			var buf bytes.Buffer
-			compressBuf := gzip.NewWriter(&buf)
+			buf.Reset()
+			compressBuf.Reset(&buf)
 			enc := json.NewEncoder(compressBuf)
 			if err := enc.Encode(metric); err != nil {
 				continue

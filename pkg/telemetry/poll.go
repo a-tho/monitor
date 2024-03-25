@@ -3,7 +3,6 @@ package telemetry
 import (
 	"math/rand"
 	"runtime"
-	"time"
 
 	monitor "github.com/a-tho/monitor/internal"
 )
@@ -42,6 +41,6 @@ func (o *Observer) poll(pollCount int) {
 	o.polled[countSinceReport].Gauges["Sys"] = monitor.Gauge(memStats.Sys)
 	o.polled[countSinceReport].Gauges["TotalAlloc"] = monitor.Gauge(memStats.TotalAlloc)
 
-	randomValue := rand.New(rand.NewSource(time.Now().Unix())).Float64()
+	randomValue := rand.Float64()
 	o.polled[countSinceReport].Gauges["RandomValue"] = monitor.Gauge(randomValue)
 }

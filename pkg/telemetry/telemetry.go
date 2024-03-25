@@ -13,6 +13,7 @@ const (
 	queueCap = 1024
 )
 
+// An Observer is used to collect and transmit metrics.
 type Observer struct {
 	SrvAddr        string
 	pollInterval   time.Duration
@@ -31,6 +32,7 @@ type MetricInstance struct {
 	Gauges map[string]monitor.Gauge
 }
 
+// NewObserver returns an initialized observer.
 func NewObserver(srvAddr string, pollInterval, reportStep int, signKeyStr string, rateLimit int) *Observer {
 	signKey, err := base64.StdEncoding.DecodeString(signKeyStr)
 	if err != nil {
@@ -52,6 +54,7 @@ func NewObserver(srvAddr string, pollInterval, reportStep int, signKeyStr string
 	return &obs
 }
 
+// Observe collects and transmit metrics.
 func (o *Observer) Observe(ctx context.Context) error {
 	// Init worker pool
 	toReport := make(chan []*monitor.Metrics, queueCap)
