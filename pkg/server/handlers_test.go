@@ -557,7 +557,10 @@ func BenchmarkAll(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			req, _ := http.NewRequest(http.MethodGet, srv.URL+"/", nil)
-			resp, _ := srv.Client().Do(req)
+			resp, err := srv.Client().Do(req)
+			if err != nil {
+				return
+			}
 			defer resp.Body.Close()
 		}
 	}
